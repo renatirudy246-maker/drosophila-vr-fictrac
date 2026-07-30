@@ -1,0 +1,6 @@
+customtkinter>=5.2
+pygame>=2.5
+numpy>=1.23
+pandas>=1.5
+matplotlib>=3.6
+

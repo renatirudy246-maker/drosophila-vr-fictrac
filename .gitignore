@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# IDE and local settings
+.idea/
+.vscode/
+.env
+*.local.json
+
+# Experiment outputs
+exp_data/
+organized_360s_csv/
+analysis/
+artifacts/
+tmp/
+*.dat
+*.log
+*.avi
+*.mp4
+*.csv
+
+# Generated applications and archives
+electron-ui/
+packaging/
+dist/
+release/
+*.zip
+*.7z
+*.exe
+*.msi
+
+# FicTrac runtime binaries are distributed with GitHub Releases
+fictrac/*.dll
+fictrac/*.exe
+fictrac/*.backup*
+
+# Generated FicTrac build trees
+fictrac-2.1.1/bin/
+fictrac-2.1.1/build/
+fictrac-2.1.1/build-*/
+fictrac-2.1.1/lib/
+fictrac-2.1.1/**/*_backup_*
+
+# Windows and Office temporary files
+Thumbs.db
+Desktop.ini
+~$*
