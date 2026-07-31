@@ -2,7 +2,7 @@ import math
 import json
 import os
 
-# 路径配置
+# 文件路径
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 config_path = os.path.join(BASE_DIR, "settings.json")
 if os.path.exists(config_path):
@@ -11,12 +11,12 @@ if os.path.exists(config_path):
 else:
     _cfg = {}
 
-# ================= 1. 路径与网络配置 =================
+# 数据保存目录
 SAVE_DIR = _cfg.get("SAVE_DIR", os.path.join(BASE_DIR, "exp_data"))
 if not os.path.isabs(SAVE_DIR):
     SAVE_DIR = os.path.join(BASE_DIR, SAVE_DIR)
 
-# ================= 1. 实验网络与硬件配置 =================
+# 网络与硬件
 UDP_IP = _cfg.get("UDP_IP", "127.0.0.1")
 UDP_PORT = int(_cfg.get("UDP_PORT", 2000))
 
@@ -24,7 +24,7 @@ SCREEN_FOV_DEG = float(_cfg.get("SCREEN_FOV_DEG", 270.0))
 SCREEN_FOV_RAD = math.radians(SCREEN_FOV_DEG)
 SPHERE_RADIUS_CM = float(_cfg.get("SPHERE_RADIUS_CM", 0.6))
 
-# ================= 2. 实验逻辑与视觉参数配置 =================
+# 实验与视觉参数
 SIMULATION_MODE = _cfg.get("SIMULATION_MODE", False)
 
 INVERT_ROTATION = bool(_cfg.get("INVERT_ROTATION", False))
@@ -32,7 +32,7 @@ INVERT_FORWARD = bool(_cfg.get("INVERT_FORWARD", False))
 
 DEFAULT_BRIGHTNESS = float(_cfg.get("DEFAULT_BRIGHTNESS", 0.41))
 
-# 核心刺激参数 (横/竖条纹)
+# 条纹参数
 V_BAR_COUNT = int(_cfg.get("V_BAR_COUNT", 2))
 V_BAR_SPACING_DEG = float(_cfg.get("V_BAR_SPACING_DEG", 150.0))
 
@@ -45,19 +45,19 @@ BAR_HALF_WIDTH_CM = VIRTUAL_WALL_DISTANCE_CM * math.sin(math.radians(BAR_VISUAL_
 
 SMOOTHING_FACTOR = float(_cfg.get("SMOOTHING_FACTOR", 0.5))
 
-# 阶段时长（保留兼容旧分析；随机状态实验主要使用 STATE_DURATION_S）
+# 旧版阶段时长，仅用于兼容已有分析。
 PHASE_1_DURATION = float(_cfg.get("PHASE_1_DURATION", 5.0))
 PHASE_2_DURATION = float(_cfg.get("PHASE_2_DURATION", 60.0))
 PHASE_3_DURATION = float(_cfg.get("PHASE_3_DURATION", 5.0))
 
-# 活动力计算阈值配置
+# 活动判定阈值
 MOVEMENT_SPEED_THRESHOLD = float(_cfg.get("MOVEMENT_SPEED_THRESHOLD", 0.05))
 MOVEMENT_ANG_VEL_THRESHOLD = float(_cfg.get("MOVEMENT_ANG_VEL_THRESHOLD", 0.05))
 
 BLACK = (0, 0, 0)
 
 
-# ================= 颜色配置解析 =================
+# 颜色配置
 def parse_color(color_str, default=(0, 0, 0)):
     try:
         return tuple(map(int, str(color_str).split(',')))
@@ -94,11 +94,11 @@ def parse_named_float_options(options):
 
 BG_COLOR_STR = str(_cfg.get("BG_COLOR", "0,255,0"))
 BAR_COLOR_STR = str(_cfg.get("BAR_COLOR", "0,0,0"))
-# 读取配置中的颜色，如果没有则使用默认值（绿底黑条）
+# 默认使用绿色背景和黑色条纹。
 BG_COLOR = parse_color(BG_COLOR_STR, (0, 255, 0))
 BAR_COLOR = parse_color(BAR_COLOR_STR, (0, 0, 0))
 
-# ================= 3. 随机状态实验配置 =================
+# 随机状态实验
 def get_float_config(key, default):
     try:
         return float(_cfg.get(key, default))
@@ -141,7 +141,7 @@ STATE_COLOR_BRIGHTNESS_MATRIX = [
     {"bg_name": "red", "bg_color": STATE_RED_COLOR, "bg_color_str": STATE_RED_COLOR_STR, "brightness_label": "bright", "brightness": STATE_RED_BRIGHT_BRIGHTNESS},
 ]
 
-# Older two-list format is kept for compatibility with previous settings files.
+# 兼容旧版 settings.json 中的两列表达方式。
 STATE_BG_OPTIONS_STR = str(_cfg.get(
     "STATE_BG_OPTIONS",
     "white:255,255,255;green:0,255,0;red:255,0,0"

@@ -416,11 +416,7 @@ def main():
                         fictrac_seq = int(float(values[col(23)]))
                         fictrac_delta_ms = float(values[col(24)])
 
-                        # ========================================================
-                        # values[20] = 第20列 = 纯前进 (Forward)
-                        # values[21] = 第21列 = 纯侧滑 (Lateral)
-                        # values[17] = 第17列 = 纯转头 (Heading)
-                        # ========================================================
+                        # FicTrac 输出列 20、21、17 分别为前进、侧移和航向。
                         raw_fly_forward = ft_forward_cm
                         raw_fly_lateral = -ft_lateral_cm
                         current_raw_heading = -ft_heading_rad
@@ -504,7 +500,7 @@ def main():
 
                             next_vr_x = vr_fly_x + vr_dx * FORWARD_GAIN
                             next_vr_y = vr_fly_y + vr_dy * FORWARD_GAIN
-                            # Open-world VR: keep accumulating position after stimulus onset.
+                            # 刺激开始后继续累计开放世界坐标。
                             vr_fly_x = next_vr_x
                             vr_fly_y = next_vr_y
 

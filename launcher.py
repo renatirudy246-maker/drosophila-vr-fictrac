@@ -1796,8 +1796,7 @@ class ExperimentLauncher(ctk.CTk):
         seconds = float(sample["time_s"])
         minutes = int(seconds // 60)
         rem = seconds - minutes * 60
-        # 仅在文本真正变化时才 configure，避免每包都触发父窗口布局/重绘，
-        # 进而引发跨进程嵌入窗口的同步等待（视频卡顿主因之一）。
+        # 状态文本未变化时跳过布局和嵌入窗口重绘。
         if "Time" in self.status_values:
             time_text = f"{minutes:02d}:{rem:05.2f}"
             if getattr(self, "_status_text_cache_time", None) != time_text:
@@ -1877,7 +1876,7 @@ class ExperimentLauncher(ctk.CTk):
         visible_count = max(40, min(1600, visible_count))
         pts = self.real_track_points[-visible_count:]
 
-        # 固定比例：轨迹像笔尖在画布上走；只有靠近边缘时视野才平移。
+        # 使用固定物理比例，仅在轨迹接近边缘时平移视图。
         origin_x = w * 0.5
         origin_y = h * 0.5
         base_radius_cm = 6.0
@@ -1908,14 +1907,13 @@ class ExperimentLauncher(ctk.CTk):
 
         def to_canvas(point):
             x, y = point
-            # 整体旋转 -90°：世界 +X(初始前方, heading=0) → 屏幕上方，世界 +Y → 屏幕右方
-            # 即"向上=向前"视图，符合行为学轨迹图习惯
+            # 世界 +X 映射到屏幕上方，世界 +Y 映射到右侧。
             return (
                 origin_x + (y - self.track_view_center[1]) * scale,
                 origin_y - (x - self.track_view_center[0]) * scale,
             )
 
-        # arena：6cm 物理半径 (main.py ARENA_RADIUS = VIRTUAL_WALL_DISTANCE_CM * 0.6)
+        # 与 main.py 相同的 6 cm 参考半径。
         arena_r = 6.0 * scale
         arena_cx, arena_cy = to_canvas((0.0, 0.0))
         c.create_oval(arena_cx - arena_r, arena_cy - arena_r, arena_cx + arena_r, arena_cy + arena_r, outline=pal["border"], width=1)
@@ -1935,7 +1933,7 @@ class ExperimentLauncher(ctk.CTk):
         px, py = to_canvas(pts[-1])
         c.create_oval(px - 5, py - 5, px + 5, py + 5, fill=pal["accent"], outline="")
         if self.real_track_heading is not None:
-            # heading 方向线统一物理尺度(1.5cm)并应用同样的旋转：h=0 指向屏幕上方
+            # 航向线长度为 1.5 cm，heading=0 指向屏幕上方。
             heading_len = 1.5 * scale
             c.create_line(
                 px,
@@ -2107,9 +2105,7 @@ class ExperimentLauncher(ctk.CTk):
             return
 
         self.fictrac_embed_attempts += 1
-        # 收敛 EnumWindows 重试：原 500ms×40次(20秒卡顿脉冲) → 最多15次(约7.5秒)。
-        # FicTrac 启动到出现 debug 窗口一般 2-3 秒，15 次足够覆盖。
-        # 间隔渐增(前几次密、后几次疏)，减少长尾期的卡顿脉冲。
+        # 最多重试约 7.5 秒，后期适当延长轮询间隔。
         if self.fictrac_embed_attempts <= 15:
             delay = 400 if self.fictrac_embed_attempts <= 6 else 700
             self.after(delay, self._try_embed_fictrac_window)
@@ -2172,8 +2168,7 @@ class ExperimentLauncher(ctk.CTk):
         crop_size = max(1, min(480, canvas_w, canvas_h))
         x = max(0, (canvas_w - crop_size) // 2)
         y = max(0, (canvas_h - crop_size) // 2)
-        # 仅在几何真正变化时才 configure/place/update_idletasks。
-        # 否则 30ms 轮询链路里反复强制同步刷新，会让整个界面卡顿。
+        # 几何未变化时跳过布局更新。
         geom = (crop_size, x, y)
         if getattr(self, "_camera_clip_geom", None) == geom and getattr(self, "_camera_clip_placed", False):
             return
@@ -2189,16 +2184,13 @@ class ExperimentLauncher(ctk.CTk):
             return
         try:
             self._position_camera_clip_frame()
-            # 目标尺寸固定 (480,480)，只在尚未设置时才调用跨进程 SetWindowPos。
-            # 无差别每帧调用会触发 WM_SIZE/WM_PAINT，跨进程时 launcher 要同步
-            # 等待 FicTrac 重绘完，是视频画面"过一会儿卡一下"的主因。
+            # 尺寸已设置时避免重复调用跨进程 SetWindowPos。
             if getattr(self, "_embedded_window_size", None) == (480, 480):
                 return
             user32 = ctypes.windll.user32
             swp_noactivate = 0x0010
             swp_nozorder = 0x0004
-            # FicTrac-debug 默认 640x480，左上角 input image 是 320x320。
-            # 子窗口保持原始尺寸，父裁剪框只露出左上角监测框。
+            # 保留子窗口尺寸，由父容器裁剪出左上角输入画面。
             user32.SetWindowPos(self.fictrac_window_hwnd, None, 0, 0, 480, 480, swp_noactivate | swp_nozorder)
             self._embedded_window_size = (480, 480)
         except Exception:
@@ -2235,7 +2227,7 @@ class ExperimentLauncher(ctk.CTk):
                 messagebox.showerror("错误", f"创建实验输出文件夹失败：\n{exc}")
                 return
             self._reset_session_display(clear_log=True, initial_message=self._t("新跟踪会话已清空。", "New tracking session cleared."), reset_live_file=True)
-            # 提升进程优先级为高优先级类 (HIGH_PRIORITY_CLASS = 0x00000080)
+            # HIGH_PRIORITY_CLASS
             high_priority_flag = 0x00000080
             self.fictrac_process = subprocess.Popen([self.fictrac_exe, run_config], cwd=experiment_dir,
                                                     creationflags=subprocess.CREATE_NEW_CONSOLE | high_priority_flag)
@@ -2350,7 +2342,6 @@ class ExperimentLauncher(ctk.CTk):
 if __name__ == "__main__":
     app = ExperimentLauncher()
     app.mainloop()
-
 
 
 
