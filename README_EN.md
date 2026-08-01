@@ -33,6 +33,8 @@ In the current apparatus, the screen is approximately 4 cm from the fly and the 
 | `settings.json` | Portable default configuration |
 | `fictrac/` | Active FicTrac configuration and calibration images |
 | `fictrac-2.1.1/` | FicTrac source, headers, documentation, samples, and build files |
+| `hardware/零件建模/` | SolidWorks parts and top-level assembly for the apparatus |
+| `hardware/果蝇VR实验平台主要材料采购链接与价格.docx` | Main materials, reference prices, and purchase links |
 | `OUTPUT_FIELDS.md` | Complete output-field and formula reference |
 | `DATA_PREPROCESSING_AND_ANALYSIS_WORKFLOW.md` | Data QC, preprocessing, and analysis workflow |
 

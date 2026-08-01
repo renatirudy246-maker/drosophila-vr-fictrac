@@ -33,6 +33,8 @@
 | `settings.json` | 可移植的默认配置 |
 | `fictrac/` | 当前 FicTrac 配置和标定图像 |
 | `fictrac-2.1.1/` | FicTrac 源码、头文件、文档、示例和构建文件 |
+| `hardware/零件建模/` | 实验平台的 SolidWorks 零件和总装配模型 |
+| `hardware/果蝇VR实验平台主要材料采购链接与价格.docx` | 主要材料、参考价格和采购链接 |
 | `OUTPUT_FIELDS.md` | 完整输出字段与计算公式 |
 | `DATA_PREPROCESSING_AND_ANALYSIS_WORKFLOW.md` | 数据质控、预处理和分析流程 |
 
