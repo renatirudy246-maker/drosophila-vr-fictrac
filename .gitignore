@@ -35,10 +35,8 @@ release/
 *.exe
 *.msi
 
-# FicTrac runtime binaries are distributed with GitHub Releases
-fictrac/*.dll
-fictrac/*.exe
-fictrac/*.backup*
+# FicTrac runtime files are distributed with GitHub Releases
+/fictrac/
 
 # Generated FicTrac build trees
 fictrac-2.1.1/bin/

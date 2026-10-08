@@ -12,18 +12,9 @@ cd drosophila-vr-fictrac
 python -m pip install -r requirements.txt
 ```
 
-FicTrac binaries are not included in the Git checkout. Download the [Windows runtime package (v1.0.1)](https://github.com/renatirudy246-maker/drosophila-vr-fictrac/releases/download/v1.0.1/drosophila-vr-fictrac-windows-v1.0.1.zip), extract it, and copy these files from its `fictrac/` folder into this repository's `fictrac/` folder:
+The Git checkout includes FicTrac source in `fictrac-2.1.1/`, but not its runtime folder. Download the [Windows runtime package (v1.0.1)](https://github.com/renatirudy246-maker/drosophila-vr-fictrac/releases/download/v1.0.1/drosophila-vr-fictrac-windows-v1.0.1.zip), extract it, and copy the entire `fictrac/` folder next to `launcher.py`. This supplies `fictrac.exe`, `configGui.exe`, their DLLs, `config.txt`, and the calibration images.
 
-```text
-fictrac.exe
-configGui.exe
-nlopt.dll
-opencv_world460.dll
-opencv_videoio_ffmpeg460_64.dll
-opencv_videoio_msmf460_64.dll
-```
-
-Keep the configuration supplied with this checkout and recalibrate it for your apparatus. The checkout alone cannot perform real tracking without the FicTrac binaries.
+Recalibrate the supplied configuration for your apparatus before collecting data. The checkout alone cannot perform real tracking without these runtime files; the source directory is not a substitute for them.
 
 ## Run
 
@@ -52,11 +43,10 @@ The physical screen is approximately 4 cm from the fly. `VIRTUAL_WALL_DISTANCE_C
 | `plot_facing_timeline.py` | Facing and approaching timelines |
 | `plot_polar_preference.py` | Polar preference plots |
 | `requirements.txt` | Python dependencies |
-| `fictrac/` | FicTrac configuration and calibration images |
 | `fictrac-2.1.1/` | FicTrac source, build files, documentation, and license |
 | `hardware/` | 27 SolidWorks parts and one top-level assembly |
 
-Outputs are saved to `exp_data/` by default, including experiment CSV files and JSON summaries. Generate analysis plots through the launcher. Experiment data, logs, and runtime binaries are excluded from Git.
+Outputs are saved to `exp_data/` by default, including experiment CSV files and JSON summaries. Generate analysis plots through the launcher. Experiment data, logs, and the locally installed `fictrac/` runtime folder are excluded from Git.
 
 Keep the hardware model directory structure and filenames unchanged so the assembly can locate its parts. Hardware files are optional and are not needed to run the program.
 
