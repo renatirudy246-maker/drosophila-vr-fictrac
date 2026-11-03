@@ -178,7 +178,7 @@ def plot_behavior_timeline(df, file_path):
     ax_speed.plot(work_df["Time_s"], work_df["Speed"], color="#1F4E9A", linewidth=1.05, zorder=3)
     ax_ang.plot(work_df["Time_s"], work_df["AbsAngVel"], color="#4A4A4A", linewidth=1.0, zorder=3)
 
-    ax_speed.set_title(f"Behavior timeline by randomized state\n{filename}", fontsize=15, pad=12)
+    ax_speed.set_title(f"Behavior timeline by trial condition\n{filename}", fontsize=15, pad=12)
     ax_speed.set_ylabel("Speed (cm/s)", fontsize=11)
     ax_ang.set_ylabel("|Angular velocity| (rad/s)", fontsize=11)
     ax_ang.set_xlabel("")
