@@ -262,6 +262,8 @@ class ExperimentLauncher(ctk.CTk):
                 self.main_area.configure(fg_color=self.colors["bg"])
             except Exception:
                 pass
+        if hasattr(self, "main_host"):
+            self.main_host.configure(bg=self.colors["bg"])
         if hasattr(self, "bottom_bar"):
             try:
                 self.bottom_bar.configure(fg_color=self.colors["top"])
@@ -275,6 +277,20 @@ class ExperimentLauncher(ctk.CTk):
                 )
             except Exception:
                 pass
+        if hasattr(self, "settings_tabs"):
+            self.settings_tabs.configure(
+                fg_color=self.colors["panel"], bg_color=self.colors["panel"],
+                segmented_button_fg_color=self.colors["panel_2"],
+                segmented_button_selected_color=self.colors["blue"],
+                segmented_button_selected_hover_color=self.colors["blue_hover"],
+                segmented_button_unselected_color=self.colors["panel_2"],
+                segmented_button_unselected_hover_color=self.colors["grid"],
+                text_color=self.colors["text"],
+            )
+            for name in self.settings_tab_names:
+                self.settings_tabs.tab(name).configure(fg_color=self.colors["panel"])
+            for frame in (self.param_groups_frame, self.advanced_params_frame):
+                frame.configure(fg_color=self.colors["panel"], bg_color=self.colors["panel"])
 
         for widget in getattr(self, "widget_groups", {}).get("headers", []):
             try:
@@ -462,6 +478,8 @@ class ExperimentLauncher(ctk.CTk):
 
         if "SINGLE_BRIGHTNESS" not in self.params:
             self.params["SINGLE_BRIGHTNESS"] = experiment_config.get_single_state(self.params)["brightness"]
+        wing = str(self.params.get("WING_CONDITION", "wing")).strip().lower()
+        self.params["WING_CONDITION"] = "no_wing" if wing in {"no", "none", "false", "0", "no_wing", "nowing"} else "wing"
 
         theme = str(self.params.get("UI_THEME", "dark")).strip().lower()
         self.theme_mode = "light" if theme == "light" else "dark"
@@ -748,9 +766,12 @@ class ExperimentLauncher(ctk.CTk):
         self.status_values[title_en] = label
 
     def _create_main_area(self):
-        main = ctk.CTkFrame(self, fg_color=self.colors["bg"], corner_radius=0)
+        self.main_host = tk.Frame(self, bg=self.colors["bg"], highlightthickness=0)
+        self.main_host.grid(row=1, column=0, sticky="nsew", padx=0, pady=8)
+        self.main_host.bind("<Configure>", self._queue_main_resize)
+        main = ctk.CTkFrame(self.main_host, fg_color=self.colors["bg"], corner_radius=0)
         self.main_area = main
-        main.grid(row=1, column=0, sticky="nsew", padx=0, pady=8)
+        main.place(x=0, y=0)
         main.grid_columnconfigure(0, weight=340, minsize=330)
         main.grid_columnconfigure(1, weight=0, minsize=5)
         main.grid_columnconfigure(2, weight=270, minsize=260)
@@ -761,6 +782,21 @@ class ExperimentLauncher(ctk.CTk):
         self._create_param_sidebar(main)
         self._create_workspace(main)
         self._create_status_sidebar(main)
+
+    def _queue_main_resize(self, event):
+        size = (max(event.width, 1), max(event.height, 1))
+        if size == getattr(self, "_pending_main_size", None):
+            return
+        self._pending_main_size = size
+        if getattr(self, "_main_resize_job", None) is not None:
+            self.after_cancel(self._main_resize_job)
+        # Reflow the full control tree once a short resize burst settles.
+        self._main_resize_job = self.after(200, self._apply_main_size)
+
+    def _apply_main_size(self):
+        self._main_resize_job = None
+        width, height = self._pending_main_size
+        self.main_area.place_configure(width=width, height=height)
 
     def _create_panel(self, parent, title_zh, title_en=None, subtitle_zh=None, subtitle_en=None):
         title_en = title_zh if title_en is None else title_en
@@ -863,20 +899,28 @@ class ExperimentLauncher(ctk.CTk):
         browse_button._role_style = "neutral"
         self.widget_groups["buttons"].append(browse_button)
 
-        self.settings_tabs = ctk.CTkTabview(body, corner_radius=4)
+        self.settings_tabs = ctk.CTkTabview(
+            body, corner_radius=4, fg_color=self.colors["panel"], bg_color=self.colors["panel"],
+            segmented_button_fg_color=self.colors["panel_2"],
+            segmented_button_selected_color=self.colors["blue"],
+            segmented_button_selected_hover_color=self.colors["blue_hover"],
+            segmented_button_unselected_color=self.colors["panel_2"],
+            segmented_button_unselected_hover_color=self.colors["grid"],
+            text_color=self.colors["text"],
+        )
         self.settings_tabs.grid(row=1, column=0, sticky="nsew", padx=6, pady=(0, 4))
         self.settings_tab_names = (self._t("实验", "Trial"), self._t("高级", "Advanced"))
         pages = [self.settings_tabs.add(name) for name in self.settings_tab_names]
         for page in pages:
             page.grid_rowconfigure(0, weight=1)
             page.grid_columnconfigure(0, weight=1)
-        groups = ctk.CTkScrollableFrame(pages[0], fg_color="transparent", corner_radius=0, label_text="")
+        groups = ctk.CTkScrollableFrame(pages[0], fg_color=self.colors["panel"], bg_color=self.colors["panel"], corner_radius=0, label_text="")
         groups.grid(row=0, column=0, sticky="nsew")
         groups.grid_columnconfigure(0, weight=1)
         self.param_groups_frame = groups
         self.widget_groups["frames"].append(groups)
 
-        advanced = ctk.CTkScrollableFrame(pages[1], fg_color="transparent", corner_radius=0, label_text="")
+        advanced = ctk.CTkScrollableFrame(pages[1], fg_color=self.colors["panel"], bg_color=self.colors["panel"], corner_radius=0, label_text="")
         advanced.grid(row=0, column=0, sticky="nsew")
         advanced.grid_columnconfigure(0, weight=1)
         self.widget_groups["frames"].append(advanced)
@@ -892,20 +936,17 @@ class ExperimentLauncher(ctk.CTk):
             "V_BAR_COUNT": ("条纹数量", "Stripe count"),
         })
         self._create_param_group(groups, "样本信息", "Sample Info", {
+            "WING_CONDITION": ("有翅膀", "Winged"),
             "FLY_ID": ("果蝇编号", "Fly ID"),
             "EXPERIMENT_ID": ("实验编号", "Trial ID"),
         })
         self._create_param_group(advanced, "采集设置", "Acquisition", {
             "UDP_PORT": ("FicTrac 端口", "FicTrac port"),
-            "WING_CONDITION": ("翅膀状态", "Wing state"),
             "SIMULATION_MODE": ("仿真模式", "Simulation mode"),
         })
-        self._create_param_group(advanced, "背景标定", "Background Calibration", {
+        self._create_param_group(advanced, "开始前画面", "Pre-start Display", {
             "PRE_START_BG_COLOR": ("开始前背景", "Pre-start background"),
             "PRE_START_BRIGHTNESS": ("开始前亮度", "Pre-start brightness"),
-            "STATE_WHITE_COLOR": ("白光 RGB", "White RGB"),
-            "STATE_GREEN_COLOR": ("绿光 RGB", "Green RGB"),
-            "STATE_RED_COLOR": ("红光 RGB", "Red RGB"),
         })
         self._create_param_group(advanced, "视觉刺激", "Visual Stimulus", {
             "BAR_COLOR": ("条纹颜色", "Bar color"),
@@ -1069,7 +1110,7 @@ class ExperimentLauncher(ctk.CTk):
         for idx, (key, text) in enumerate(items):
             text_zh, text_en = self._pair(text)
             row = ctk.CTkFrame(card, fg_color="transparent")
-            row.pack(fill="x", padx=12, pady=6)
+            row.pack(fill="x", padx=12, pady=4 if parent is self.param_groups_frame else 6)
             self.widget_groups["frames"].append(row)
             label = ctk.CTkLabel(row, text=self._t(text_zh, text_en), font=self.fonts["body"], text_color=self.colors["text"], anchor="w")
             self._register_localized(label, text_zh, text_en)
@@ -1103,9 +1144,10 @@ class ExperimentLauncher(ctk.CTk):
                 menu = ctk.CTkOptionMenu(row, variable=self.tk_vars[key], values=options, width=112, height=26)
                 menu.pack(side="right", pady=1)
                 control = menu
-            elif key in ("SINGLE_STIMULUS_ON", "SIMULATION_MODE"):
+            elif key in ("SINGLE_STIMULUS_ON", "SIMULATION_MODE", "WING_CONDITION"):
                 label.pack(side="left", fill="x", expand=True)
-                switch = ctk.CTkSwitch(row, text="", variable=self.tk_vars[key], width=40)
+                values = {"onvalue": "wing", "offvalue": "no_wing"} if key == "WING_CONDITION" else {}
+                switch = ctk.CTkSwitch(row, text="", variable=self.tk_vars[key], width=40, **values)
                 switch.pack(side="right", pady=1)
                 control = switch
             elif key.endswith("_OPTIONS"):
@@ -1184,6 +1226,7 @@ class ExperimentLauncher(ctk.CTk):
         track_body.grid_columnconfigure(0, weight=1)
         self.track_canvas = tk.Canvas(track_body, bg=self.colors["canvas"], highlightthickness=0)
         self.track_canvas.grid(row=0, column=0, sticky="nsew")
+        self.track_canvas.bind("<Configure>", lambda e: self._on_camera_canvas_configure())
         self.track_slot.bind("<Configure>", lambda e: self._fit_aspect_panel(e, self.track_panel))
         self.widget_groups["canvases"].append(self.track_canvas)
 
@@ -1406,8 +1449,20 @@ class ExperimentLauncher(ctk.CTk):
         if panel_h > available_h:
             panel_h = available_h
             panel_w = int(panel_h * aspect_ratio)
-        panel.configure(width=panel_w, height=panel_h)
-        panel.place_configure(relx=0.5, rely=0.5, anchor="center", width=panel_w, height=panel_h)
+        if not hasattr(self, "_pending_panel_sizes"):
+            self._pending_panel_sizes = {}
+        self._pending_panel_sizes[panel] = (panel_w, panel_h)
+        if getattr(self, "_panel_resize_job", None) is None:
+            self._panel_resize_job = self.after(16, self._apply_panel_sizes)
+
+    def _apply_panel_sizes(self):
+        self._panel_resize_job = None
+        pending = self._pending_panel_sizes
+        self._pending_panel_sizes = {}
+        for panel, size in pending.items():
+            if getattr(panel, "_last_resize_size", None) != size:
+                panel.place_configure(relx=0.5, rely=0.5, anchor="center", width=size[0], height=size[1])
+                panel._last_resize_size = size
 
     def _clear_event_log(self, initial_message=None):
         if not hasattr(self, "log_frame"):
@@ -2194,10 +2249,21 @@ class ExperimentLauncher(ctk.CTk):
         return found["hwnd"]
 
     def _on_camera_canvas_configure(self):
+        if getattr(self, "_view_resize_job", None) is None:
+            self._view_resize_job = self.after(33, self._redraw_resized_views)
+
+    def _redraw_resized_views(self):
+        self._view_resize_job = None
         if self.fictrac_window_hwnd:
             self._position_embedded_fictrac_window()
         else:
             self._draw_camera()
+        if self.real_track_points:
+            self._draw_real_track()
+        elif self.live_demo_enabled:
+            self._draw_track()
+        else:
+            self._draw_track_idle()
 
     def _embed_fictrac_debug_window(self, hwnd):
         if os.name != "nt":
@@ -2235,7 +2301,6 @@ class ExperimentLauncher(ctk.CTk):
         self.camera_clip_frame.configure(width=crop_size, height=crop_size, bg=self.colors["canvas"])
         self.camera_clip_frame.place(x=x, y=y, width=crop_size, height=crop_size)
         self.camera_clip_frame.lift()
-        self.camera_clip_frame.update_idletasks()
         self._camera_clip_geom = geom
         self._camera_clip_placed = True
 

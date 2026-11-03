@@ -30,7 +30,7 @@ python launcher.py
 
 ## Select a Condition
 
-Use the launcher's Trial tab for background, duration, brightness, stripe enable/width/count, and sample IDs. Hardware, RGB calibration, pre-start appearance, and recording settings are on the Advanced tab. The original nine-cell brightness matrix is not shown. Save the configuration before starting.
+Use the launcher's Trial tab for background, duration, brightness, stripe enable/width/count, winged/wingless status, and sample IDs. Hardware, pre-start appearance, stripe color, and recording settings are on the Advanced tab; separate white/green/red RGB controls and the original nine-cell brightness matrix are not shown. Save the configuration before starting. During window resizing, the control layout is updated after a short pause rather than rebuilt for every mouse movement.
 
 The equivalent keys in `settings.json` are:
 

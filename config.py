@@ -236,6 +236,7 @@ def get_experiment_config_snapshot(extra_config=None):
         "SINGLE_STIMULUS_ON": state["stimulus_on"],
         "SINGLE_BRIGHTNESS": state["brightness"],
         "FLY_ID": str(_cfg.get("FLY_ID", "01")),
+        "WING_CONDITION": str(_cfg.get("WING_CONDITION", "wing")),
         "EXPERIMENT_ID": str(_cfg.get("EXPERIMENT_ID", "1")),
         "PRE_START_BG_COLOR": PRE_START_BG_COLOR_STR,
         "PRE_START_BRIGHTNESS": PRE_START_BRIGHTNESS,
