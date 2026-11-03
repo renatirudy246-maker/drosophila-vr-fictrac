@@ -20,6 +20,27 @@ class ProgressBar(ttk.Progressbar):
         self.configure(value=value)
 
 
+class StateSelector(ttk.Combobox):
+    def __init__(self, parent, variable, choices, translate, **kwargs):
+        super().__init__(parent, state="readonly", **kwargs)
+        self.variable = variable
+        self.choices = choices
+        self.translate = translate
+        variable.trace_add("write", self.refresh)
+        self.bind("<<ComboboxSelected>>", self._selected)
+        self.refresh()
+
+    def refresh(self, *_):
+        self.configure(values=[self.translate(zh, en) for _, zh, en in self.choices])
+        value = self.variable.get()
+        self.current(next(index for index, (option, _, _) in enumerate(self.choices) if option == value))
+
+    def _selected(self, event):
+        index = self.current()
+        if index >= 0:
+            self.variable.set(self.choices[index][0])
+
+
 class ParameterViewport(tk.Frame):
     def __init__(self, parent, background):
         super().__init__(parent, bg=background, bd=0)
@@ -130,6 +151,12 @@ class ExperimentLauncher(controller.ExperimentController):
         self._register_localized(button, zh, en)
         return button
 
+    def _configure_combobox_popup(self, control):
+        popup = self.tk.call("ttk::combobox::PopdownWindow", str(control))
+        self.tk.call(f"{popup}.f.l", "configure", "-font", str(control.cget("font")),
+                     "-background", self.colors["panel_2"], "-foreground", self.colors["text"],
+                     "-selectbackground", self.colors["blue"], "-selectforeground", "#FFFFFF")
+
     def create_ui(self):
         self._native_colors = []
         self._viewports = []
@@ -167,6 +194,12 @@ class ExperimentLauncher(controller.ExperimentController):
         self._create_native_status(main)
         self._create_native_workspace(main)
         self._create_native_footer()
+        for key in ("SINGLE_BG_NAME", "SINGLE_BRIGHTNESS", "SINGLE_STIMULUS_ON", "WING_CONDITION",
+                    "FLY_ID", "EXPERIMENT_ID", "SAVE_DIR", "OUTPUT_ROOT_DIR"):
+            self.tk_vars[key].trace_add("write", lambda *_: self._update_save_path_label())
+        for key in ("WING_CONDITION", "OUTPUT_ROOT_DIR"):
+            self.tk_vars[key].trace_add("write", self._refresh_suggested_fly_id)
+        self._refresh_suggested_fly_id()
         scale = self._get_window_scaling()
         self._native_font_sizes = {name: abs(value.cget("size")) / scale for name, value in self.fonts.items()}
         self._native_layout_scale = NativeLayoutScale(self, scale, (self.camera_clip_frame,))
@@ -205,7 +238,7 @@ class ExperimentLauncher(controller.ExperimentController):
         path.grid(row=1, column=0, sticky="ew", padx=self._px(10), pady=(0, 6))
         path.grid_columnconfigure(0, weight=1)
         self._label(path, "导出路径", "Export Path", muted=True).grid(row=0, column=0, sticky="w")
-        ttk.Entry(path, textvariable=self.tk_vars["SAVE_DIR"], width=1,
+        ttk.Entry(path, textvariable=self.tk_vars["OUTPUT_ROOT_DIR"], width=1,
                   font=self.fonts["body"], style="VR.TEntry").grid(
             row=1, column=0, sticky="ew", padx=(0, 6))
         self._button(path, "浏览", "Browse", self.browse_save_dir).grid(row=1, column=1)
@@ -232,7 +265,7 @@ class ExperimentLauncher(controller.ExperimentController):
             ("V_BAR_COUNT", "条纹数量", "Stripe count"),
         ))
         self._parameter_section(basic, "样本信息", "Sample Info", (
-            ("WING_CONDITION", "有翅膀", "Winged"),
+            ("WING_CONDITION", "翅膀状态", "Wings"),
             ("FLY_ID", "果蝇编号", "Fly ID"),
             ("EXPERIMENT_ID", "实验编号", "Trial ID"),
         ))
@@ -268,10 +301,12 @@ class ExperimentLauncher(controller.ExperimentController):
             if key == "SINGLE_BG_NAME":
                 control = ttk.Combobox(parent, textvariable=variable, state="readonly",
                                        values=("white", "green", "red"), width=12,
-                                       font=self.fonts["body"], style="VR.TCombobox")
+                                       font=self.fonts["mono"], style="VR.TCombobox")
             elif key in ("SINGLE_STIMULUS_ON", "SIMULATION_MODE", "WING_CONDITION"):
-                values = dict(onvalue="wing", offvalue="no_wing") if key == "WING_CONDITION" else {}
-                control = ttk.Checkbutton(parent, variable=variable, style="VR.TCheckbutton", **values)
+                choices = (("wing", "有翅", "Winged"), ("no_wing", "无翅", "Wingless")) \
+                    if key == "WING_CONDITION" else ((True, "开启", "On"), (False, "关闭", "Off"))
+                control = StateSelector(parent, variable, choices, self._t, width=12,
+                                        font=self.fonts["mono"], style="VR.TCombobox")
             elif key == "SINGLE_BRIGHTNESS":
                 controls = self._frame(parent)
                 controls.grid(row=row, column=1, sticky="ew", padx=(0, 8), pady=6)
@@ -292,8 +327,10 @@ class ExperimentLauncher(controller.ExperimentController):
             else:
                 control = ttk.Entry(parent, textvariable=variable, width=13,
                                     font=self.fonts["mono"], style="VR.TEntry")
+            if isinstance(control, ttk.Combobox):
+                control.configure(postcommand=lambda c=control: self._configure_combobox_popup(c))
             if key != "SINGLE_BRIGHTNESS":
-                control.grid(row=row, column=1, sticky="e", padx=(0, 8), pady=6)
+                control.grid(row=row, column=1, sticky="e" if "COLOR" in key else "ew", padx=(0, 8), pady=6)
             self.param_widgets[key] = dict(row=parent, label=label, control=control, group=parent)
         parent.next_row = row + 1
 
@@ -456,8 +493,6 @@ class ExperimentLauncher(controller.ExperimentController):
                                  insertcolor=p["text"], bordercolor=p["border"], padding=self._px(4),
                                  font=self.fonts["mono"])
             self.style.map(name, fieldbackground=[("readonly", p["panel_2"])], foreground=[("readonly", p["text"])])
-        self.style.configure("VR.TCheckbutton", background=p["panel"], foreground=p["text"])
-        self.style.map("VR.TCheckbutton", background=[("active", p["panel"])])
         self.style.configure("VR.Horizontal.TScale", background=p["panel"], troughcolor=p["grid"])
         self.style.configure("VR.Horizontal.TProgressbar", background=p["accent"], troughcolor=p["grid"],
                              thickness=self._px(7), borderwidth=0)
@@ -465,6 +500,11 @@ class ExperimentLauncher(controller.ExperimentController):
         self.option_add("*TCombobox*Listbox.background", p["panel_2"])
         self.option_add("*TCombobox*Listbox.foreground", p["text"])
         self.option_add("*TCombobox*Listbox.selectBackground", p["blue"])
+        self.option_add("*TCombobox*Listbox.font", self.fonts["mono"])
+        for info in self.param_widgets.values():
+            control = info["control"]
+            if isinstance(control, ttk.Combobox) and self.tk.call("winfo", "exists", f"{control}.popdown.f.l"):
+                self._configure_combobox_popup(control)
         for widget, options in self._native_colors:
             widget.configure(**{key: p[role] for key, role in options.items()})
         for viewport in self._viewports:
@@ -477,6 +517,9 @@ class ExperimentLauncher(controller.ExperimentController):
         self.title(title)
         for widget, zh, en, attribute in self.localized_widgets:
             widget.configure(**{attribute: self._t(zh, en)})
+        for info in self.param_widgets.values():
+            if isinstance(info["control"], StateSelector):
+                info["control"].refresh()
         self.lang_toggle_button.configure(text="EN" if self.language == "zh" else "中文")
         self.settings_tab_names = (self._t("实验", "Trial"), self._t("高级", "Advanced"))
         for index, name in enumerate(self.settings_tab_names):

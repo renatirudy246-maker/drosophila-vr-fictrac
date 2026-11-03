@@ -2,7 +2,9 @@ import contextlib
 import io
 import itertools
 import math
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 from types import SimpleNamespace
@@ -192,6 +194,8 @@ class TrialLoopTests(unittest.TestCase):
                 self.assertEqual(result["live"][-1]["time_s"], 20)
                 self.assertTrue(result["renderer_closed"] and result["socket_closed"])
                 self.assertEqual(len(list(Path(tmp).glob("*_phase_summary.csv"))), 1)
+                prefix = "green_medium_" + ("on" if stimulus else "off")
+                self.assertEqual(len(list(Path(tmp).glob(prefix + "_*.csv"))), 2)
                 self.assertFalse((Path(tmp) / main.FICTRAC_RECORDING_ACTIVE_FLAG).exists())
                 self.assertEqual(float((Path(tmp) / main.FICTRAC_RECORDING_DONE_FILE).read_text()), 20)
                 self.assertTrue(all(not draw[2]["stimulus_on"] for draw in result["draws"] if draw[0] < 3))
@@ -228,6 +232,17 @@ class TrialLoopTests(unittest.TestCase):
 
 
 class PlotTests(unittest.TestCase):
+    def test_all_plot_commands_accept_the_condition_output_folder(self):
+        source = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmp:
+            run_synthetic_trial(True, Path(tmp))
+            env = dict(os.environ, MPLBACKEND="Agg", PYTHONIOENCODING="utf-8")
+            for script in ("plot_split_trajectory.py", "plot_facing_timeline.py", "plot_polar_preference.py"):
+                result = subprocess.run([sys.executable, "-B", str(source / script), tmp],
+                                        env=env, capture_output=True, text=True, encoding="utf-8", timeout=30)
+                self.assertEqual(result.returncode, 0, script + ": " + result.stderr)
+            self.assertEqual(len(list(Path(tmp).rglob("*.png"))), 4)
+
     def test_current_polar_angles_have_no_extra_rotation(self):
         from plot_polar_preference import _stimulus_angles
         for count in (1, 2, 3, 4, 12):
@@ -252,6 +267,7 @@ class PlotTests(unittest.TestCase):
                 root = Path(tmp)
                 run_synthetic_trial(stimulus, root)
                 csv_path = next(p for p in root.glob("*.csv") if "phase_summary" not in p.name)
+                self.assertEqual(Path(trajectory.find_csv_in_folder(str(root))), csv_path)
                 with contextlib.redirect_stdout(io.StringIO()):
                     trajectory.plot_state_trajectories(str(csv_path))
                     timeline.plot_behavior_timeline(timeline.load_clean_data(str(csv_path)), str(csv_path))

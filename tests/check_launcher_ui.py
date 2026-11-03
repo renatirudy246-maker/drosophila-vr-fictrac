@@ -7,6 +7,7 @@ import socket
 import sys
 import tempfile
 import time
+from tkinter import font as tkfont
 import unittest
 from unittest.mock import Mock, patch
 
@@ -61,8 +62,17 @@ class InterfaceTests(unittest.TestCase):
 
     def setUp(self):
         self.errors.clear()
+        self.app.fictrac_process = None
+        self.app.vr_process = None
+        self.app.current_experiment_dir = None
         for key, value in self.initial.items():
             self.app.tk_vars[key].set(value)
+        self.test_output = tempfile.TemporaryDirectory(dir=self.work, prefix="case_outputs_")
+        self.case_settings = dict(self.settings, SAVE_DIR=self.test_output.name,
+                                  OUTPUT_ROOT_DIR=self.test_output.name)
+        for key in ("SAVE_DIR", "OUTPUT_ROOT_DIR"):
+            self.app.tk_vars[key].set(self.test_output.name)
+        self.app._refresh_suggested_fly_id()
         self.app.language = self.initial["UI_LANGUAGE"]
         self.app.theme_mode = self.initial["UI_THEME"]
         self.app._apply_language()
@@ -73,7 +83,39 @@ class InterfaceTests(unittest.TestCase):
         self.app._reset_live_trajectory_preview()
 
     def tearDown(self):
+        self.test_output.cleanup()
         self.assertFalse(self.errors, self.errors)
+
+    def assert_dropdown_font(self, key):
+        app = self.app
+        app.settings_tabs.select(1 if key == "SIMULATION_MODE" else 0)
+        control = app.param_widgets[key]["control"]
+        app.tk.call("ttk::combobox::Post", str(control))
+        self.pump(0.02)
+        try:
+            popup = app.tk.call("ttk::combobox::PopdownWindow", str(control))
+            listbox = f"{popup}.f.l"
+            self.assertEqual(str(app.tk.call(listbox, "cget", "-font")), str(control.cget("font")), key)
+            field_font = tkfont.Font(app, name=str(control.cget("font")), exists=True)
+            bbox = app.tk.splitlist(app.tk.call(listbox, "bbox", 0))
+            self.assertEqual(len(bbox), 4, key)
+            self.assertGreaterEqual(int(bbox[3]), field_font.metrics("linespace") - 1, key)
+            self.assertEqual(str(app.tk.call(listbox, "cget", "-background")), app.colors["panel_2"])
+            self.assertEqual(str(app.tk.call(listbox, "cget", "-foreground")), app.colors["text"])
+        finally:
+            app.tk.call("ttk::combobox::Unpost", str(control))
+
+    def test_dropdown_popup_fonts_follow_field_fonts_and_themes(self):
+        app = self.app
+        before = {key: variable.get() for key, variable in app.tk_vars.items()}
+        for language in ("zh", "en"):
+            app.language = language
+            app._apply_language()
+            for mode in ("dark", "light"):
+                app._apply_theme(mode)
+                for key in ("SINGLE_BG_NAME", "WING_CONDITION", "SINGLE_STIMULUS_ON", "SIMULATION_MODE"):
+                    self.assert_dropdown_font(key)
+        self.assertEqual({key: variable.get() for key, variable in app.tk_vars.items()}, before)
 
     def test_backend_and_parameter_inventory_are_preserved(self):
         expected = {"SINGLE_BG_NAME", "STATE_DURATION_S", "SINGLE_BRIGHTNESS", "SINGLE_STIMULUS_ON",
@@ -152,6 +194,8 @@ class InterfaceTests(unittest.TestCase):
                     self.assertEqual(scale, 1)
                 else:
                     self.assertEqual(scale, 1.75)
+                for key in ("SINGLE_BG_NAME", "WING_CONDITION", "SINGLE_STIMULUS_ON", "SIMULATION_MODE"):
+                    self.assert_dropdown_font(key)
                 for width, height in ((1180, 640), (1450, 820), (1230, 690)):
                     app.geometry(f"{width}x{height}")
                     self.pump(0.06)
@@ -194,10 +238,12 @@ class InterfaceTests(unittest.TestCase):
         app = self.app
         app.save_config()
         saved = json.loads((self.work / "settings.json").read_text())
-        for key, value in self.settings.items():
+        for key, value in self.case_settings.items():
             self.assertEqual(saved[key], value, key)
         for key in ("WING_CONDITION", "SINGLE_STIMULUS_ON", "SIMULATION_MODE"):
-            app.param_widgets[key]["control"].invoke()
+            selector = app.param_widgets[key]["control"]
+            selector.current(1 if key == "WING_CONDITION" else 0)
+            selector.event_generate("<<ComboboxSelected>>")
         self.assertEqual(app.tk_vars["WING_CONDITION"].get(), "no_wing")
         self.assertTrue(app.tk_vars["SINGLE_STIMULUS_ON"].get())
         self.assertTrue(app.tk_vars["SIMULATION_MODE"].get())
@@ -223,6 +269,148 @@ class InterfaceTests(unittest.TestCase):
         with patch.object(self.module.controller, "askcolor", return_value=((12, 34, 56), "#0c2238")):
             app.param_widgets["BAR_COLOR"]["control"].invoke()
         self.assertEqual(app.tk_vars["BAR_COLOR"].get(), "12,34,56")
+
+    def test_compact_selectors_labels_selection_and_saved_values(self):
+        app = self.app
+        choices = {
+            "WING_CONDITION": (("wing", "有翅", "Winged"), ("no_wing", "无翅", "Wingless")),
+            "SINGLE_STIMULUS_ON": ((True, "开启", "On"), (False, "关闭", "Off")),
+            "SIMULATION_MODE": ((True, "开启", "On"), (False, "关闭", "Off")),
+        }
+        for language in ("zh", "en"):
+            app.language = language
+            app._apply_language()
+            for mode in ("dark", "light"):
+                app._apply_theme(mode)
+                self.pump(0.03)
+                for key, options in choices.items():
+                    selector = app.param_widgets[key]["control"]
+                    background = app.param_widgets["SINGLE_BG_NAME"]["control"]
+                    reference = app.param_widgets["UDP_PORT" if key == "SIMULATION_MODE" else "STATE_DURATION_S"]["control"]
+                    self.assertEqual(str(selector.cget("state")), "readonly")
+                    self.assertEqual(selector.winfo_reqwidth(), background.winfo_reqwidth())
+                    self.assertEqual(selector.winfo_reqheight(), background.winfo_reqheight())
+                    self.assertEqual(selector.winfo_width(), reference.winfo_width())
+                    self.assertEqual(selector.winfo_height(), reference.winfo_height())
+                    self.assertEqual(selector.winfo_x(), reference.winfo_x())
+                    self.assertEqual(tuple(selector.cget("values")),
+                                     tuple(zh if language == "zh" else en for _, zh, en in options))
+                    for index, (value, zh, en) in enumerate(options):
+                        selector.current(index)
+                        selector.event_generate("<<ComboboxSelected>>")
+                        self.pump(0.01)
+                        self.assertEqual(app.tk_vars[key].get(), value)
+                        self.assertEqual(selector.get(), zh if language == "zh" else en)
+                    app.tk_vars[key].set(options[0][0])
+                    self.assertEqual(selector.current(), 0)
+        app.tk_vars["WING_CONDITION"].set("no_wing")
+        app.tk_vars["SINGLE_STIMULUS_ON"].set(True)
+        app.tk_vars["SIMULATION_MODE"].set(True)
+        app.save_config()
+        saved = json.loads((self.work / "settings.json").read_text())
+        self.assertEqual(saved["WING_CONDITION"], "no_wing")
+        self.assertIs(saved["SINGLE_STIMULUS_ON"], True)
+        self.assertIs(saved["SIMULATION_MODE"], True)
+        self.assertEqual(app._experiment_folder_name(), "no_wing_01_white_high")
+
+    def test_filename_preview_uses_actual_color_intensity_and_stripes(self):
+        app = self.app
+        app.current_experiment_dir = None
+        app._update_save_path_label()
+        self.assertIn(os.path.join("wing", "wing_01_white_high"), app.save_path_label.cget("text"))
+        app.tk_vars["WING_CONDITION"].set("no_wing")
+        app.tk_vars["FLY_ID"].set("02")
+        self.assertIn(os.path.join("no_wing", "no_wing_02_white_high"), app.save_path_label.cget("text"))
+        self.assertIn("white_high_off_", app.save_path_label.cget("text"))
+        app.tk_vars["SINGLE_BG_NAME"].set("green")
+        app.tk_vars["SINGLE_BRIGHTNESS"].set("0.231")
+        app.tk_vars["SINGLE_STIMULUS_ON"].set(True)
+        self.assertIn("green_medium_on_", app.save_path_label.cget("text"))
+        app.tk_vars["SINGLE_BRIGHTNESS"].set("0.42")
+        self.assertIn("green_custom_on_", app.save_path_label.cget("text"))
+        app.tk_vars["SINGLE_BRIGHTNESS"].set("")
+        self.assertIn("condition_", app.save_path_label.cget("text"))
+
+    def test_grouped_sample_creation_numbering_snapshot_and_overwrite_protection(self):
+        app = self.app
+        root = Path(self.test_output.name)
+        first = Path(app._prepare_experiment_output_dir())
+        self.assertEqual(first, root / "wing" / "wing_01_white_high")
+        self.assertEqual(app.tk_vars["FLY_ID"].get(), "01")
+        sentinel = first / "recording.txt"
+        sentinel.write_text("protected recording")
+        fake = Mock()
+        fake.poll.return_value = None
+        app.fictrac_process = fake
+        app.tk_vars["SINGLE_STIMULUS_ON"].set(True)
+        self.assertEqual(Path(app._prepare_experiment_output_dir()), first)
+        snapshot = json.loads((first / "experiment_settings.json").read_text())
+        self.assertEqual(snapshot["FLY_ID"], "01")
+        self.assertIs(snapshot["SINGLE_STIMULUS_ON"], True)
+        app.tk_vars["SINGLE_BG_NAME"].set("red")
+        with self.assertRaises(ValueError):
+            app._prepare_experiment_output_dir()
+        app.tk_vars["SINGLE_BG_NAME"].set("white")
+        app.stop_all()
+        self.assertEqual(app.tk_vars["FLY_ID"].get(), "02")
+        app.tk_vars["FLY_ID"].set("01")
+        app.tk_vars["SINGLE_BG_NAME"].set("red")
+        app.tk_vars["SINGLE_BRIGHTNESS"].set("0.329")
+        with self.assertRaises(FileExistsError):
+            app._prepare_experiment_output_dir()
+        self.assertEqual(sentinel.read_text(), "protected recording")
+        app._refresh_suggested_fly_id()
+        second = Path(app._prepare_experiment_output_dir())
+        self.assertEqual(second, root / "wing" / "wing_02_red_high")
+        app.stop_all()
+        app.tk_vars["WING_CONDITION"].set("no_wing")
+        self.assertEqual(app.tk_vars["FLY_ID"].get(), "01")
+        app.tk_vars["SINGLE_BG_NAME"].set("green")
+        app.tk_vars["SINGLE_BRIGHTNESS"].set("0.153")
+        third = Path(app._prepare_experiment_output_dir())
+        self.assertEqual(third, root / "no_wing" / "no_wing_01_green_low")
+        self.assertEqual(app.tk_vars["FLY_ID"].get(), "01")
+        app.stop_all()
+        self.assertEqual(app.tk_vars["FLY_ID"].get(), "02")
+        app.tk_vars["WING_CONDITION"].set("wing")
+        self.assertEqual(app.tk_vars["FLY_ID"].get(), "03")
+        app.tk_vars["OUTPUT_ROOT_DIR"].set(str(first))
+        self.assertEqual(Path(app._get_output_root_dir()), root)
+
+    def test_relative_export_root_produces_absolute_tracking_and_flag_paths(self):
+        app = self.app
+        relative = os.path.relpath(self.test_output.name, self.work)
+        app.tk_vars["OUTPUT_ROOT_DIR"].set(relative)
+        app.tk_vars["SAVE_DIR"].set(relative)
+        folder = Path(app._prepare_experiment_output_dir())
+        self.assertEqual(folder, Path(self.test_output.name) / "wing" / "wing_01_white_high")
+        self.assertTrue(folder.is_absolute())
+        run_config = Path(app._write_fictrac_run_config(str(folder)))
+        self.assertTrue(run_config.is_absolute() and run_config.is_file())
+        self.assertEqual(run_config.parent, folder)
+        saved = json.loads((self.work / "settings.json").read_text())
+        self.assertEqual(Path(saved["SAVE_DIR"]), folder)
+        self.assertEqual(Path(saved["OUTPUT_ROOT_DIR"]), Path(self.test_output.name))
+
+    def test_active_tracking_cannot_switch_recording_output_directories(self):
+        app = self.app
+        folder = Path(app._prepare_experiment_output_dir())
+        fake = Mock()
+        fake.poll.return_value = None
+        app.fictrac_process = fake
+        before = {key: variable.get() for key, variable in app.tk_vars.items()}
+        with patch.object(self.module.controller.messagebox, "showerror") as error, \
+                patch.object(self.module.controller.filedialog, "askdirectory") as dialog:
+            app.browse_save_dir()
+            error.assert_called_once()
+            dialog.assert_not_called()
+        self.assertEqual({key: variable.get() for key, variable in app.tk_vars.items()}, before)
+        app.tk_vars["OUTPUT_ROOT_DIR"].set(str(Path(self.test_output.name) / "different_root"))
+        with self.assertRaises(ValueError):
+            app._prepare_experiment_output_dir()
+        self.assertEqual(Path(app.current_experiment_dir), folder)
+        self.assertEqual(Path(app.tk_vars["SAVE_DIR"].get()), folder)
+        app.fictrac_process = None
 
     def test_dpi_reflow_refreshes_entry_fonts_without_changing_values(self):
         app = self.app

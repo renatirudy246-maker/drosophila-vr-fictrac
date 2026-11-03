@@ -3,6 +3,7 @@ import math
 import os
 from datetime import datetime
 from statistics import mean, median
+from output_naming import condition_file_prefix
 
 
 class ExperimentLogger:
@@ -358,8 +359,9 @@ class ExperimentLogger:
             return
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_filename = f"drosophila_exp_{timestamp}.csv"
-        summary_filename = f"drosophila_exp_{timestamp}_phase_summary.csv"
+        prefix = condition_file_prefix(self.experiment_config_snapshot)
+        csv_filename = f"{prefix}_{timestamp}.csv"
+        summary_filename = f"{prefix}_{timestamp}_phase_summary.csv"
         os.makedirs(self.save_dir, exist_ok=True)
         full_save_path = os.path.join(self.save_dir, csv_filename)
         full_summary_path = os.path.join(self.save_dir, summary_filename)

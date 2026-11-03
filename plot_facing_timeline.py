@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.patches import Patch
+from output_naming import resolve_input_path
 
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei"]
 plt.rcParams["axes.unicode_minus"] = False
@@ -251,7 +252,7 @@ def LineOrPatch(color, label):
 
 
 if __name__ == "__main__":
-    csv_path = sys.argv[1] if len(sys.argv) > 1 else select_file()
+    csv_path = resolve_input_path(sys.argv[1]) if len(sys.argv) > 1 else select_file()
     if not csv_path or not os.path.exists(csv_path):
         print("未选择文件，程序退出。")
         sys.exit()

@@ -6,6 +6,7 @@ from tkinter import filedialog
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from output_naming import find_csv_in_folder, resolve_input_path
 
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei"]
 plt.rcParams["axes.unicode_minus"] = False
@@ -23,27 +24,6 @@ def select_file():
         title="请选择果蝇实验轨迹数据 CSV 文件",
         filetypes=[("CSV Files", "*.csv")],
     )
-
-
-def find_csv_in_folder(folder_path):
-    candidates = [
-        os.path.join(folder_path, name)
-        for name in os.listdir(folder_path)
-        if name.lower().endswith(".csv")
-        and name.startswith("drosophila_exp_")
-        and "summary" not in name.lower()
-    ]
-    if not candidates:
-        return None
-    return max(candidates, key=os.path.getmtime)
-
-
-def resolve_input_path(path):
-    if not path:
-        return None
-    if os.path.isdir(path):
-        return find_csv_in_folder(path)
-    return path
 
 
 def load_clean_data(file_path):

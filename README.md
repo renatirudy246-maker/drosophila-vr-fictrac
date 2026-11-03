@@ -10,7 +10,7 @@ Use 64-bit Windows 10/11 and Python 3.9-3.11 with a compatible camera and displa
 
 ### Complete Windows Package
 
-Download [drosophila-vr-fictrac-windows-v1.1.0.zip](https://github.com/renatirudy246-maker/drosophila-vr-fictrac/releases/download/v1.1.0/drosophila-vr-fictrac-windows-v1.1.0.zip) from the [v1.1.0 Release](https://github.com/renatirudy246-maker/drosophila-vr-fictrac/releases/tag/v1.1.0). Extract the entire archive, keeping its folder structure. It includes the Python program and the `fictrac/` runtime folder with `fictrac.exe`, `configGui.exe`, OpenCV/NLopt DLLs, configuration and calibration images. No separate FicTrac download or build is needed for this package.
+Download [drosophila-vr-fictrac-windows-v1.1.1.zip](https://github.com/renatirudy246-maker/drosophila-vr-fictrac/releases/download/v1.1.1/drosophila-vr-fictrac-windows-v1.1.1.zip) from the [v1.1.1 Release](https://github.com/renatirudy246-maker/drosophila-vr-fictrac/releases/tag/v1.1.1). Extract the entire archive, keeping its folder structure. It includes the Python program and the `fictrac/` runtime folder with `fictrac.exe`, `configGui.exe`, OpenCV/NLopt DLLs, configuration and calibration images. No separate FicTrac download or build is needed for this package.
 
 Activate your Python environment, open a terminal in the extracted project directory, and run:
 
@@ -64,13 +64,31 @@ The equivalent keys in `settings.json` are:
 
 `V_BAR_COUNT` accepts integers from 1 to 12. Vertical stripes are spaced evenly around the virtual fly, starting at its trial-start heading; two stripes retain the original front/back layout. Spacing is calculated from the count, rather than the legacy `V_BAR_SPACING_DEG` setting. Stripe width is the nominal angular width at the anchor position; it must be 21.92-46.99 degrees, matching the renderer's existing angular limits. Apparent width still varies with the fly's virtual position within these limits. `Stim_Bar_Back_*` is blank when no stripe is placed exactly behind the anchor (odd stripe counts).
 
-Each run presents just that condition, without randomization or an additional 180-second block. It stops after the configured sampling duration (20 seconds by default); a lack of incoming tracking data pauses the sampling clock. With stripes enabled, their virtual-world positions are anchored using the first new FicTrac sample after trial start. Keep the same Fly ID for repeat trials on the same animal and use Trial ID to distinguish recordings.
+Each fly is recorded in one condition, without randomization or an additional 180-second block. Recording stops after the configured sampling duration (20 seconds by default); a lack of incoming tracking data pauses the sampling clock. With stripes enabled, their virtual-world positions are anchored using the first new FicTrac sample after trial start. Fly IDs identify individual animals within each wing group. Trial ID is retained as configuration metadata and is not part of the folder name.
 
 CSV rows retain `State_Index = 1` and record the actual background, brightness, and stimulus flag. Configuration snapshot columns identify the `single_condition` protocol, stripe count/spacing, condition settings, Fly ID, and Trial ID. Trajectory and timeline plots work with a single state; polar preference is only generated for trials with visual stripes. New recordings declare the `front_zero` angular reference, which the polar plot uses without the legacy centering rotation.
 
 The physical screen is approximately 4 cm from the fly. `VIRTUAL_WALL_DISTANCE_CM` describes the virtual scene, not this physical distance.
 
 ## Files and Outputs
+
+One sample folder holds one fly's single-condition recording. All generated folder names are English:
+
+```text
+exp_data/
+  wing/
+    wing_01_white_low/
+    wing_02_red_high/
+  no_wing/
+    no_wing_01_green_medium/
+    no_wing_02_white_high/
+```
+
+The launcher suggests `01`, `02`, `03`, and so on by reading existing sample folders in the selected group. The two groups count independently, each starting at `01`. You may edit the suggested Fly ID, but an ID already used in that group is rejected even if its color or intensity differs. Starting tracking and VR shares the same sample folder; after stopping, the next unused ID is suggested. Existing folders are never overwritten, renamed, or moved.
+
+The export field selects the parent data directory. Relative paths such as `exp_data` are resolved to absolute paths before launching FicTrac, so the tracker, VR loop, recording flags and CSV logger use the same sample folder. Stop tracking and VR before changing the export path or sample identity.
+
+Single-condition CSV files use `white_high_off_YYYYMMDD_HHMMSS.csv`: background (`white`/`green`/`red`), intensity (`low`/`medium`/`high`), and stripes (`on`/`off`). Intensity labels in both sample folders and CSV names are matched to that color's saved dark/medium/bright calibration values, not thirds of the 0-1 range. Unmatched or ambiguous intensities use `custom`; the exact numeric intensity remains in the CSV and configuration snapshot. Summary files use the same name with `_phase_summary` appended. Plotting accepts both these names and legacy `drosophila_exp_*` files.
 
 | File | Purpose |
 | --- | --- |
@@ -81,6 +99,7 @@ The physical screen is approximately 4 cm from the fly. `VIRTUAL_WALL_DISTANCE_C
 | `config.py`, `settings.json` | Runtime configuration and saved settings |
 | `renderer.py` | Visual stimulus rendering |
 | `data_logger.py` | Frame-level CSV and state summaries |
+| `output_naming.py` | Condition filenames and new/legacy CSV discovery |
 | `plot_split_trajectory.py` | Trajectory plots |
 | `plot_facing_timeline.py` | Facing and approaching timelines |
 | `plot_polar_preference.py` | Polar preference plots |

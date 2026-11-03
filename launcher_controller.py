@@ -13,6 +13,8 @@ import socket
 import re
 from ctypes import wintypes
 import config as experiment_config
+from output_naming import (FLY_FOLDER_PATTERN, condition_file_prefix, existing_fly_ids,
+                           fly_folder_name, output_root_dir)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(BASE_DIR)
@@ -318,7 +320,7 @@ class ExperimentController(ctk.CTk):
 
         if "OUTPUT_ROOT_DIR" not in self.params or not self.params.get("OUTPUT_ROOT_DIR"):
             save_dir = str(self.params.get("SAVE_DIR", default_save_dir))
-            self.params["OUTPUT_ROOT_DIR"] = os.path.dirname(os.path.normpath(save_dir)) if self._looks_like_experiment_dir(save_dir) else save_dir
+            self.params["OUTPUT_ROOT_DIR"] = output_root_dir(save_dir)
 
         for key, val in self.params.items():
             if key in ("V_BAR_COUNT", "STATE_DURATION_S", "BAR_VISUAL_ANGLE_DEG", "SINGLE_BRIGHTNESS"):
@@ -365,6 +367,10 @@ class ExperimentController(ctk.CTk):
             messagebox.showerror("Error", f"保存参数失败: {e}")
 
     def browse_save_dir(self):
+        if any(process is not None and process.poll() is None
+               for process in (self.fictrac_process, self.vr_process)):
+            messagebox.showerror("提示", "跟踪或 VR 正在运行，请先停止，再更改导出路径。")
+            return
         current_dir = self.tk_vars["SAVE_DIR"].get()
         initial_dir = current_dir if os.path.exists(current_dir) else os.getcwd()
         selected_dir = filedialog.askdirectory(initialdir=initial_dir, title="选择实验数据保存文件夹")
@@ -374,14 +380,12 @@ class ExperimentController(ctk.CTk):
             if "OUTPUT_ROOT_DIR" in self.tk_vars:
                 self.tk_vars["OUTPUT_ROOT_DIR"].set(selected_dir)
             self.current_experiment_dir = None
-            if hasattr(self, "save_path_label"):
-                self.save_path_label.configure(
-                    text=f"{self.tk_vars['SAVE_DIR'].get()}\\drosophila_exp_YYYYMMDD_HHMMSS.csv"
-                )
+            self._update_save_path_label()
 
     def _looks_like_experiment_dir(self, path):
         name = os.path.basename(os.path.normpath(str(path)))
-        return re.match(r"^(?:exp_\d{3}_|(?:no_)?wing_\d{2,}_\d+)$", name) is not None
+        return FLY_FOLDER_PATTERN.fullmatch(name) is not None or re.match(
+            r"^(?:exp_\d{3}_|(?:no_)?wing_\d{2,}_\d+)$", name) is not None
 
     def _get_output_root_dir(self):
         if "OUTPUT_ROOT_DIR" in self.tk_vars:
@@ -390,9 +394,7 @@ class ExperimentController(ctk.CTk):
             root_dir = ""
         if not root_dir:
             root_dir = str(self.tk_vars["SAVE_DIR"].get()).strip()
-        if self._looks_like_experiment_dir(root_dir):
-            root_dir = os.path.dirname(os.path.normpath(root_dir))
-        return os.path.normpath(root_dir or os.path.join(os.getcwd(), "exp_data"))
+        return os.path.abspath(output_root_dir(root_dir or os.path.join(os.getcwd(), "exp_data")))
 
     def _normalized_wing_condition(self):
         raw = str(self.tk_vars.get("WING_CONDITION", tk.StringVar(value="wing")).get()).strip().lower()
@@ -416,29 +418,62 @@ class ExperimentController(ctk.CTk):
         return str(int(digits))
 
     def _experiment_folder_name(self):
-        return f"{self._normalized_wing_condition()}_{self._format_fly_id()}_{self._format_experiment_id()}"
+        values = {key: variable.get() for key, variable in self.tk_vars.items()}
+        state = experiment_config.get_single_state(values)
+        values["SINGLE_BRIGHTNESS"] = state["brightness"]
+        return fly_folder_name(values, self._normalized_wing_condition(), self._format_fly_id())
+
+    def _refresh_suggested_fly_id(self, *_):
+        if self.current_experiment_dir:
+            return
+        try:
+            used = existing_fly_ids(self._get_output_root_dir(), self._normalized_wing_condition())
+            self.tk_vars["FLY_ID"].set(f"{max(used, default=0) + 1:02d}")
+        except (OSError, ValueError, tk.TclError):
+            pass
 
     def _next_experiment_dir(self, root_dir):
         os.makedirs(root_dir, exist_ok=True)
+        wing = self._normalized_wing_condition()
+        group_dir = os.path.join(root_dir, wing)
         folder_name = self._experiment_folder_name()
-        experiment_dir = os.path.join(root_dir, folder_name)
-        if os.path.exists(experiment_dir):
-            raise FileExistsError(f"实验文件夹已存在：{experiment_dir}\n请修改果蝇编号或实验编号，避免覆盖已有数据。")
+        experiment_dir = os.path.join(group_dir, folder_name)
+        if int(self._format_fly_id()) in existing_fly_ids(root_dir, wing) or os.path.exists(experiment_dir):
+            raise FileExistsError(f"{wing} 组的果蝇编号 {self._format_fly_id()} 已使用。\n请使用新的果蝇编号，已有数据不会覆盖。")
         return experiment_dir
 
     def _update_save_path_label(self):
         if hasattr(self, "save_path_label"):
-            save_dir = self.tk_vars["SAVE_DIR"].get()
-            self.save_path_label.configure(text=f"{save_dir}\\drosophila_exp_YYYYMMDD_HHMMSS.csv")
+            try:
+                save_dir = self.current_experiment_dir or os.path.join(
+                    self._get_output_root_dir(), self._normalized_wing_condition(), self._experiment_folder_name())
+                values = {key: variable.get() for key, variable in self.tk_vars.items()}
+                state = experiment_config.get_single_state(values)
+                values.update(EXPERIMENT_PROTOCOL="single_condition", SINGLE_BRIGHTNESS=state["brightness"])
+                prefix = condition_file_prefix(values)
+            except (ValueError, TypeError, tk.TclError):
+                save_dir = self._get_output_root_dir()
+                prefix = "condition"
+            self.save_path_label.configure(text=f"{save_dir}\\{prefix}_YYYYMMDD_HHMMSS.csv")
 
     def _prepare_experiment_output_dir(self):
         fictrac_running = self.fictrac_process is not None and self.fictrac_process.poll() is None
         vr_running = self.vr_process is not None and self.vr_process.poll() is None
         if self.current_experiment_dir and os.path.isdir(self.current_experiment_dir) and (fictrac_running or vr_running):
+            expected_dir = os.path.join(self._get_output_root_dir(), self._normalized_wing_condition(),
+                                        self._experiment_folder_name())
+            if os.path.normcase(os.path.abspath(self.current_experiment_dir)) != os.path.normcase(expected_dir):
+                raise ValueError("导出路径、果蝇编号、翅膀状态或光照条件已改变。请先停止当前跟踪，再开始新实验。")
+            self.save_config()
+            with open(os.path.join(self.current_experiment_dir, "experiment_settings.json"), "w", encoding="utf-8") as file:
+                json.dump(self.params, file, indent=4)
             return self.current_experiment_dir
+        if self.current_experiment_dir:
+            self.current_experiment_dir = None
+            self._refresh_suggested_fly_id()
         root_dir = self._get_output_root_dir()
         experiment_dir = self._next_experiment_dir(root_dir)
-        os.makedirs(experiment_dir, exist_ok=True)
+        os.makedirs(experiment_dir, exist_ok=False)
         self.current_experiment_dir = experiment_dir
         if "OUTPUT_ROOT_DIR" in self.tk_vars:
             self.tk_vars["OUTPUT_ROOT_DIR"].set(root_dir)
@@ -1503,6 +1538,7 @@ class ExperimentController(ctk.CTk):
         self._embedded_window_size = None
         self.current_experiment_dir = None
         self.fictrac_run_config_txt = None
+        self._refresh_suggested_fly_id()
         self._reset_session_display(clear_log=True, initial_message=None, reset_live_file=False)
         self.status_values["Tracking"].configure(text=f"● {self._state_word('STOPPED')}", text_color=self.colors["danger"])
         self._set_event("All processes terminated")
