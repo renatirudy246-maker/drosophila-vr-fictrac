@@ -98,7 +98,7 @@ BAR_COLOR_STR = str(_cfg.get("BAR_COLOR", "0,0,0"))
 BG_COLOR = parse_color(BG_COLOR_STR, (0, 255, 0))
 BAR_COLOR = parse_color(BAR_COLOR_STR, (0, 0, 0))
 
-# 随机状态实验
+# Experiment condition and calibrated brightness values.
 def get_float_config(key, default):
     try:
         return float(_cfg.get(key, default))
@@ -107,7 +107,10 @@ def get_float_config(key, default):
 
 
 STATE_DURATION_S = float(_cfg.get("STATE_DURATION_S", 20.0))
-STATE_RANDOM_SEED = int(_cfg.get("STATE_RANDOM_SEED", 0))
+# Select one of the original conditions; no automatic condition switching.
+SINGLE_BG_NAME = str(_cfg.get("SINGLE_BG_NAME", "white")).strip().lower()
+SINGLE_BRIGHTNESS_LABEL = str(_cfg.get("SINGLE_BRIGHTNESS_LABEL", "bright")).strip().lower()
+SINGLE_STIMULUS_ON = _cfg.get("SINGLE_STIMULUS_ON", False)
 PRE_START_BG_COLOR_STR = str(_cfg.get("PRE_START_BG_COLOR", "255,255,255"))
 PRE_START_BG_COLOR = parse_color(PRE_START_BG_COLOR_STR, (255, 255, 255))
 PRE_START_BRIGHTNESS = get_float_config("PRE_START_BRIGHTNESS", 0.35)
@@ -154,7 +157,45 @@ STATE_BG_OPTIONS = parse_named_color_options(STATE_BG_OPTIONS_STR)
 STATE_BRIGHTNESS_OPTIONS = parse_named_float_options(STATE_BRIGHTNESS_OPTIONS_STR)
 
 
+def get_single_state(settings=None):
+    values = _cfg if settings is None else settings
+    bg_name = str(values.get("SINGLE_BG_NAME", "white")).strip().lower()
+    level = str(values.get("SINGLE_BRIGHTNESS_LABEL", "bright")).strip().lower()
+    stimulus_on = values.get("SINGLE_STIMULUS_ON", False)
+    if bg_name not in ("white", "green", "red"):
+        raise ValueError("SINGLE_BG_NAME must be white, green, or red")
+    if level not in ("dark", "medium", "bright"):
+        raise ValueError("SINGLE_BRIGHTNESS_LABEL must be dark, medium, or bright")
+    if not isinstance(stimulus_on, bool):
+        raise ValueError("SINGLE_STIMULUS_ON must be a JSON boolean")
+    duration = float(values.get("STATE_DURATION_S", 20.0))
+    if not math.isfinite(duration) or duration <= 0:
+        raise ValueError("STATE_DURATION_S must be finite and positive")
+    color_key = f"STATE_{bg_name.upper()}_COLOR"
+    color_str = str(values.get(color_key, globals()[color_key + "_STR"]))
+    color = tuple(int(channel) for channel in color_str.split(","))
+    if len(color) != 3 or any(channel < 0 or channel > 255 for channel in color):
+        raise ValueError(f"{color_key} must contain three RGB values from 0 to 255")
+    brightness_key = f"STATE_{bg_name.upper()}_{level.upper()}_BRIGHTNESS"
+    brightness = float(values.get(brightness_key, globals()[brightness_key]))
+    if not math.isfinite(brightness) or not 0 <= brightness <= 1:
+        raise ValueError(f"{brightness_key} must be between 0 and 1")
+    block = "stimulus" if stimulus_on else "no_stimulus"
+    return {
+        "index": 1,
+        "block": block,
+        "bg_name": bg_name,
+        "bg_color": color,
+        "bg_color_str": color_str,
+        "brightness_label": level,
+        "brightness": brightness,
+        "stimulus_on": stimulus_on,
+        "label": f"01_{block}_{bg_name}_{level}",
+    }
+
+
 def get_experiment_config_snapshot(extra_config=None):
+    state = get_single_state()
     snapshot = {
         "SCREEN_FOV_DEG": SCREEN_FOV_DEG,
         "SPHERE_RADIUS_CM": SPHERE_RADIUS_CM,
@@ -178,7 +219,13 @@ def get_experiment_config_snapshot(extra_config=None):
         "BG_COLOR": BG_COLOR_STR,
         "BAR_COLOR": BAR_COLOR_STR,
         "STATE_DURATION_S": STATE_DURATION_S,
-        "STATE_RANDOM_SEED": STATE_RANDOM_SEED,
+        "EXPERIMENT_PROTOCOL": "single_condition",
+        "STATE_COUNT": 1,
+        "SINGLE_BG_NAME": state["bg_name"],
+        "SINGLE_BRIGHTNESS_LABEL": state["brightness_label"],
+        "SINGLE_STIMULUS_ON": state["stimulus_on"],
+        "FLY_ID": str(_cfg.get("FLY_ID", "01")),
+        "EXPERIMENT_ID": str(_cfg.get("EXPERIMENT_ID", "1")),
         "PRE_START_BG_COLOR": PRE_START_BG_COLOR_STR,
         "PRE_START_BRIGHTNESS": PRE_START_BRIGHTNESS,
         "STATE_WHITE_COLOR": STATE_WHITE_COLOR_STR,

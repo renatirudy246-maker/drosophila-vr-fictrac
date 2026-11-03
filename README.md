@@ -1,6 +1,8 @@
-# Drosophila VR with FicTrac 2.1.1
+# Drosophila VR with FicTrac 2.1.1: Single-Condition Trials
 
 A Windows-based experiment system for a tethered fly on a spherical treadmill. It receives FicTrac tracking data over UDP, displays visual stimuli on a U-shaped screen, and records behavior and trajectories.
+
+This version runs one manually selected condition per trial, with a default duration of 20 seconds and `VIRTUAL_WALL_DISTANCE_CM = 9.75`. The original 18-state, 360-second protocol with a 10.0 cm virtual-wall distance is preserved in [drosophila-vr-fictrac-360s](https://github.com/renatirudy246-maker/drosophila-vr-fictrac-360s). This single-condition variant does not change the protocol used to collect historical data or make segments from the same fly independent biological samples.
 
 ## Setup
 
@@ -26,7 +28,22 @@ python launcher.py
 2. Set the actual sphere radius in the launcher (default: `0.6 cm`). Match the UDP port in the launcher and `fictrac/config.txt` (default: `2000`). Keep simulation mode disabled for real experiments.
 3. Start the camera and FicTrac, then open the VR window. Press Space in that window to begin the experiment and recording. Preparation time is excluded; subsequent CSV timestamps use FicTrac sampling intervals.
 
-The default schedule has 18 states: nine without stripes followed by nine with stripes, randomized within each block. States combine three background colors and three brightness levels, lasting 20 seconds each (about 360 seconds total).
+## Select a Condition
+
+Edit these keys in `settings.json`, or use the launcher's Trial Condition controls and save the configuration before starting:
+
+```json
+"STATE_DURATION_S": 20,
+"SINGLE_BG_NAME": "white",
+"SINGLE_BRIGHTNESS_LABEL": "bright",
+"SINGLE_STIMULUS_ON": false
+```
+
+`SINGLE_BG_NAME` accepts `white`, `green`, or `red`; `SINGLE_BRIGHTNESS_LABEL` accepts `dark`, `medium`, or `bright`; `SINGLE_STIMULUS_ON` is a JSON boolean (`true` for stripes, `false` for no stripes). The example selects white, bright, and no stripes. Brightness is read from the corresponding calibrated `STATE_<COLOR>_<LEVEL>_BRIGHTNESS` value, not replaced by 100% intensity.
+
+Each run presents just that condition, without randomization or an additional 180-second block. It stops after the configured sampling duration (20 seconds by default); a lack of incoming tracking data pauses the sampling clock. With stripes enabled, their virtual-world positions are anchored using the first new FicTrac sample after trial start. Keep the same Fly ID for repeat trials on the same animal and use Trial ID to distinguish recordings.
+
+CSV rows retain `State_Index = 1` and record the selected background, calibrated brightness, and stimulus flag. Configuration snapshot columns identify the `single_condition` protocol, condition settings, Fly ID, and Trial ID. Trajectory and timeline plots work with a single state; polar preference is only generated for trials with visual stripes.
 
 The physical screen is approximately 4 cm from the fly. `VIRTUAL_WALL_DISTANCE_CM` describes the virtual scene, not this physical distance.
 
@@ -46,7 +63,9 @@ The physical screen is approximately 4 cm from the fly. `VIRTUAL_WALL_DISTANCE_C
 | `fictrac-2.1.1/` | FicTrac source, build files, documentation, and license |
 | `hardware/` | 27 SolidWorks parts and one top-level assembly |
 
-Outputs are saved to `exp_data/` by default, including experiment CSV files and JSON summaries. Generate analysis plots through the launcher. Experiment data, logs, and the locally installed `fictrac/` runtime folder are excluded from Git.
+Outputs are saved to `exp_data/` by default, including frame-level and state-summary CSV files and a live-status JSON file. Generate analysis plots through the launcher. Experiment data, logs, and the locally installed `fictrac/` runtime folder are excluded from Git.
+
+Run the offline protocol checks with `python -m unittest discover -s tests -v`. These use synthetic tracking packets and do not replace camera or display calibration on the apparatus.
 
 Hardware models are grouped under `screen_support/`, `ball_holder/`, `circuit_board/`, `camera_mount/`, and `infrared_light/`. The assembly file is [platform_assembly.SLDASM](hardware/platform_assembly.SLDASM). Only filesystem names have been translated; internal CAD references have not been updated, so opening the assembly may require relinking components. Hardware files are optional and are not needed to run the program.
 

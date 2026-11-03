@@ -6,7 +6,6 @@ import time
 import socket
 import math
 import json
-import random
 import traceback
 import pygame
 import threading
@@ -131,54 +130,10 @@ def finish_fictrac_debug_recording(target_duration_s):
     except OSError:
         pass
 def build_state_schedule():
-    state_options = getattr(cfg, "STATE_COLOR_BRIGHTNESS_MATRIX", None)
-    if not state_options:
-        bg_options = cfg.STATE_BG_OPTIONS or [
-            {"name": "white", "color": (255, 255, 255), "color_str": "255,255,255"},
-            {"name": "green", "color": (0, 255, 0), "color_str": "0,255,0"},
-            {"name": "red", "color": (255, 0, 0), "color_str": "255,0,0"},
-        ]
-        brightness_options = cfg.STATE_BRIGHTNESS_OPTIONS or [
-            {"name": "dark", "value": 0.25},
-            {"name": "medium", "value": 0.55},
-            {"name": "bright", "value": 1.0},
-        ]
-        state_options = []
-        for bg in bg_options:
-            for brightness in brightness_options:
-                state_options.append({
-                    "bg_name": bg["name"],
-                    "bg_color": bg["color"],
-                    "bg_color_str": bg["color_str"],
-                    "brightness_label": brightness["name"],
-                    "brightness": brightness["value"],
-                })
-
-    def make_block(block_name, stimulus_on):
-        states = []
-        for option in state_options:
-            state = dict(option)
-            state["block"] = block_name
-            state["stimulus_on"] = stimulus_on
-            states.append(state)
-        return states
-
-    rng = random.Random(cfg.STATE_RANDOM_SEED or None)
-    no_stim_states = make_block("no_stimulus", False)
-    stim_states = make_block("stimulus", True)
-    rng.shuffle(no_stim_states)
-    rng.shuffle(stim_states)
-
-    schedule = no_stim_states + stim_states
-    for index, state in enumerate(schedule, start=1):
-        state["index"] = index
-        state["label"] = (
-            f"{index:02d}_{state['block']}_{state['bg_name']}_"
-            f"{state['brightness_label']}"
-        )
-    return schedule
+    return [cfg.get_single_state()]
 
 def main():
+    selected_schedule = build_state_schedule()
     renderer = VRRenderer(cfg.SCREEN_FOV_RAD, cfg.BLACK)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -247,8 +202,7 @@ def main():
         wall_center_x = arena_center_x + cfg.VIRTUAL_WALL_DISTANCE_CM * math.cos(anchor["heading"])
         wall_center_y = arena_center_y + cfg.VIRTUAL_WALL_DISTANCE_CM * math.sin(anchor["heading"])
 
-        # 第一个有刺激状态开始时，用“无刺激最后一帧”的位置和朝向锚定前/后条纹。
-        # 这样第一帧刺激在果蝇视觉中位于正前方屏幕中央，之后条纹固定在虚拟世界坐标中。
+        # Anchor the bars at trial start; there is no preceding no-stimulus block.
         for offset_rad in (0.0, math.pi):
             abs_angle = anchor["heading"] + offset_rad
             bx = arena_center_x + cfg.VIRTUAL_WALL_DISTANCE_CM * math.cos(abs_angle)
@@ -257,7 +211,7 @@ def main():
 
         stimulus_initialized = True
         print(
-            "刺激 block 触发：条纹已按无刺激最后一帧锚定 "
+            "Stimulus anchored at trial start "
             f"(t={anchor['time']:.4f}s, heading={anchor['heading']:.4f} rad)。"
         )
         return True
@@ -295,7 +249,7 @@ def main():
                         flush_pending_socket_packets(sock)
                         experiment_started = True
                         start_time = time.perf_counter()
-                        state_schedule = build_state_schedule()
+                        state_schedule = selected_schedule
 
                         target_debug_video_duration_s = len(state_schedule) * cfg.STATE_DURATION_S
 
@@ -340,7 +294,7 @@ def main():
                     flush_pending_socket_packets(sock)
                     experiment_started = True
                     start_time = time.perf_counter()
-                    state_schedule = build_state_schedule()
+                    state_schedule = selected_schedule
 
                     target_debug_video_duration_s = len(state_schedule) * cfg.STATE_DURATION_S
 
@@ -451,6 +405,8 @@ def main():
                             prev_forward = raw_fly_forward
                             prev_lateral = raw_fly_lateral
                             prev_heading = current_raw_heading
+                            if current_stimulus_on:
+                                initialize_stimulus_from_anchor()
                             continue
 
                         perf_dt = None if prev_perf_time is None else recv_perf_time - prev_perf_time
@@ -467,7 +423,14 @@ def main():
                         if dt <= 0:
                             continue
 
-                        experiment_time_s += dt
+                        next_experiment_time_s = experiment_time_s + dt
+                        total_duration_s = len(state_schedule) * cfg.STATE_DURATION_S
+                        if next_experiment_time_s > total_duration_s + 1e-9:
+                            experiment_time_s = total_duration_s
+                            experiment_started = False
+                            running = False
+                            break
+                        experiment_time_s = min(next_experiment_time_s, total_duration_s)
                         packet_time = experiment_time_s
 
                         if state_schedule:
@@ -662,10 +625,15 @@ def main():
                             })
                             last_live_write_time = now
 
+                        if experiment_time_s >= total_duration_s:
+                            experiment_started = False
+                            running = False
+                            break
+
             except BlockingIOError:
                 break
 
-        if current_stimulus_on and not stimulus_initialized:
+        if current_stimulus_on and not stimulus_initialized and not awaiting_first_experiment_frame:
             initialize_stimulus_from_anchor()
 
         if current_stimulus_on and stimulus_initialized:

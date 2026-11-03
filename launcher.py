@@ -12,6 +12,7 @@ import ctypes
 import socket
 import re
 from ctypes import wintypes
+import config as experiment_config
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(BASE_DIR)
@@ -412,14 +413,16 @@ class ExperimentLauncher(ctk.CTk):
             "V_BAR_SPACING_DEG": 150.0,
             "H_BAR_COUNT": 0,
             "H_BAR_SPACING_CM": 6.0,
-            "VIRTUAL_WALL_DISTANCE_CM": 10.0,
+            "VIRTUAL_WALL_DISTANCE_CM": 9.75,
             "BAR_VISUAL_ANGLE_DEG": 30.0,
             "BG_COLOR": "0,255,0",
             "BAR_COLOR": "0,0,0",
             "SPHERE_RADIUS_CM": 0.6,
             "MONITOR_SMOOTHING_FACTOR": 0.65,
             "STATE_DURATION_S": 20,
-            "STATE_RANDOM_SEED": 0,
+            "SINGLE_BG_NAME": "white",
+            "SINGLE_BRIGHTNESS_LABEL": "bright",
+            "SINGLE_STIMULUS_ON": False,
             "PRE_START_BG_COLOR": "255,255,255",
             "PRE_START_BRIGHTNESS": 0.35,
             "STATE_WHITE_COLOR": "255,255,255",
@@ -485,6 +488,7 @@ class ExperimentLauncher(ctk.CTk):
             self.tk_vars["UI_LANGUAGE"].set(self.language)
         for key, var in self.tk_vars.items():
             self.params[key] = var.get()
+        experiment_config.get_single_state(self.params)
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
             json.dump(self.params, f, indent=4)
 
@@ -864,7 +868,11 @@ class ExperimentLauncher(ctk.CTk):
         self._create_param_group(groups, "实验流程", "Experiment Flow", {
             "UDP_PORT": ("FicTrac 端口", "FicTrac port"),
             "STATE_DURATION_S": ("状态时长 (s)", "State duration (s)"),
-            "STATE_RANDOM_SEED": ("随机种子", "Random seed"),
+        })
+        self._create_param_group(groups, "单次实验条件", "Trial Condition", {
+            "SINGLE_BG_NAME": ("背景", "Background"),
+            "SINGLE_BRIGHTNESS_LABEL": ("亮度等级", "Brightness level"),
+            "SINGLE_STIMULUS_ON": ("视觉条纹", "Visual stripes"),
         })
         self._create_param_group(groups, "背景颜色", "Background Colors", {
             "PRE_START_BG_COLOR": ("开始前背景", "Pre-start background"),
@@ -923,20 +931,18 @@ class ExperimentLauncher(ctk.CTk):
 
     def _protocol_summary_text(self):
         try:
-            state_seconds = float(self.tk_vars["STATE_DURATION_S"].get())
-        except (KeyError, TypeError, ValueError):
-            state_seconds = 20.0
-        total_seconds = state_seconds * 18
-        if self.language == "zh":
-            return (
-                f"18 个随机状态；前 9 个无刺激，后 9 个有视觉刺激。\n"
-                f"每个状态 {state_seconds:g}s；预计总时长 {self._format_duration_label(total_seconds)}。\n"
-                "状态矩阵：白/绿/红 × 弱/中/强；开始前白色背景亮度 0.35；刺激为前/后条纹。"
-            )
-        return (
-            f"18 randomized states; first 9 without stimulus, last 9 with visual stimulus.\n"
-            f"Each state {state_seconds:g}s; expected duration {self._format_duration_label(total_seconds)}.\n"
-            "State matrix: white/green/red x dark/medium/bright; pre-start white brightness 0.35; front/back bars."
+            values = {key: var.get() for key, var in self.tk_vars.items()}
+            state = experiment_config.get_single_state(values)
+            duration = float(values["STATE_DURATION_S"])
+        except (tk.TclError, KeyError, TypeError, ValueError):
+            return self._t("实验条件无效", "Invalid trial condition")
+        return self._t(
+            f"单状态实验 · {duration:g}s\n",
+            f"Single-condition trial · {duration:g}s\n",
+        ) + (
+            f"{self._state_color_label(state['bg_name'])} / "
+            f"{self._state_brightness_label(state['brightness_label'])} "
+            f"({state['brightness']:g}) / {self._state_block_label(state['block'])}"
         )
 
     def _update_protocol_summary(self):
@@ -974,7 +980,9 @@ class ExperimentLauncher(ctk.CTk):
         summary_label.pack(fill="x", padx=12, pady=10)
         self.widget_groups["labels"].append(summary_label)
         try:
-            self.tk_vars["STATE_DURATION_S"].trace_add("write", lambda *_: self._update_protocol_summary())
+            for key, var in self.tk_vars.items():
+                if key.startswith(("SINGLE_", "STATE_")):
+                    var.trace_add("write", lambda *_: self._update_protocol_summary())
         except Exception:
             pass
 
@@ -1048,7 +1056,16 @@ class ExperimentLauncher(ctk.CTk):
             self._register_localized(label, text_zh, text_en)
             self.widget_groups["labels"].append(label)
 
-            if key.endswith("_OPTIONS"):
+            if key in ("SINGLE_BG_NAME", "SINGLE_BRIGHTNESS_LABEL"):
+                label.pack(side="left", fill="x", expand=True)
+                options = ["white", "green", "red"] if key == "SINGLE_BG_NAME" else ["dark", "medium", "bright"]
+                menu = ctk.CTkOptionMenu(row, variable=self.tk_vars[key], values=options, width=112, height=26)
+                menu.pack(side="right", pady=1)
+            elif key == "SINGLE_STIMULUS_ON":
+                label.pack(side="left", fill="x", expand=True)
+                switch = ctk.CTkSwitch(row, text="", variable=self.tk_vars[key], width=40)
+                switch.pack(side="right", pady=1)
+            elif key.endswith("_OPTIONS"):
                 label.pack(fill="x", anchor="w", pady=(0, 4))
                 entry = ctk.CTkEntry(row, textvariable=self.tk_vars[key], height=26, border_width=1, corner_radius=4, font=ctk.CTkFont(family="Consolas", size=11))
                 entry.pack(fill="x")
@@ -1236,7 +1253,7 @@ class ExperimentLauncher(ctk.CTk):
             state_seconds = float(self.tk_vars["STATE_DURATION_S"].get())
         except (KeyError, TypeError, ValueError):
             state_seconds = 20.0
-        total_seconds = max(state_seconds * 18, 1.0)
+        total_seconds = max(state_seconds, 1.0)
         seconds = max(float(payload.get("time_s", 0.0)), 0.0)
         progress = min(max(seconds / total_seconds, 0.0), 1.0)
         self.run_progress_bar.set(progress)
@@ -1245,18 +1262,14 @@ class ExperimentLauncher(ctk.CTk):
         state_index = int(state.get("index", payload.get("phase", 0)) or 0)
         if state_index:
             progress_text = self._t(
-                f"State {state_index}/18 · {self._format_duration_label(seconds)} / {self._format_duration_label(total_seconds)}",
-                f"State {state_index}/18 · {self._format_duration_label(seconds)} / {self._format_duration_label(total_seconds)}",
+                f"State {state_index}/1 · {self._format_duration_label(seconds)} / {self._format_duration_label(total_seconds)}",
+                f"State {state_index}/1 · {self._format_duration_label(seconds)} / {self._format_duration_label(total_seconds)}",
             )
             detail_text = (
                 f"{self._state_block_label(state.get('block', ''))} · "
                 f"{self._state_color_label(state.get('bg_name', ''))} / "
                 f"{self._state_brightness_label(state.get('brightness_label', ''))}"
             )
-            if state_index < 18:
-                detail_text += self._t(f"；下一状态 {state_index + 1}/18", f"; next state {state_index + 1}/18")
-            else:
-                detail_text += self._t("；最后一个状态", "; final state")
         else:
             progress_text = self._t("等待开始", "Waiting to start")
             detail_text = self._t("空格或鼠标开始实验；开始前为白色背景。", "Press space or click to begin; pre-start background is white.")
@@ -1626,7 +1639,7 @@ class ExperimentLauncher(ctk.CTk):
                     state = payload.get("state") or {}
                     if state:
                         state_text = (
-                            f"{state.get('index', phase)}/18 | "
+                            f"{state.get('index', phase)}/1 | "
                             f"{self._state_block_label(state.get('block', ''))} | "
                             f"{self._state_color_label(state.get('bg_name', ''))}/"
                             f"{self._state_brightness_label(state.get('brightness_label', ''))}"

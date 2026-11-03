@@ -117,7 +117,7 @@ def build_state_paths(df):
 
     paths = {}
     max_abs = 1.0
-    for state_index in range(1, 19):
+    for state_index in sorted(df["State_Index"].dropna().astype(int).unique()):
         state_df = df[df["State_Index"].astype(int) == state_index]
         if state_df.empty:
             continue
@@ -155,7 +155,7 @@ def build_continuous_state_paths(df):
 
     paths = {}
     max_abs = 1.0
-    for state_index in range(1, 19):
+    for state_index in sorted(work_df["State_Index"].dropna().astype(int).unique()):
         path_df = work_df[work_df["State_Index"].astype(int) == state_index]
         if path_df.empty:
             continue
@@ -203,7 +203,7 @@ def plot_all_state_trajectories(state_paths, output_png, axis_limit):
     fig, ax = plt.subplots(figsize=(8.2, 8.2))
     cmap = plt.get_cmap("tab20")
 
-    for state_index in range(1, 19):
+    for state_index in sorted(state_paths):
         path_df = state_paths.get(state_index)
         if path_df is None or path_df.empty:
             continue
@@ -247,7 +247,7 @@ def plot_state_trajectories(file_path):
         return
 
     if "State_Index" not in df.columns:
-        print("错误: 当前 CSV 缺少 State_Index 列，不能按 18 个状态拆分轨迹。")
+        print("错误: 当前 CSV 缺少 State_Index 列，不能按状态拆分轨迹。")
         return
 
     df = df.copy()
@@ -272,7 +272,7 @@ def plot_state_trajectories(file_path):
         plot_all_state_trajectories(continuous_paths, all_output_png, continuous_axis_limit)
 
     generated = 0
-    for state_index in range(1, 19):
+    for state_index in sorted(state_paths):
         state_df = df[df["State_Index"].astype(int) == state_index]
         path_df = state_paths.get(state_index)
         if state_df.empty or path_df is None:
