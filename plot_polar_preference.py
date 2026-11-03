@@ -97,6 +97,7 @@ def load_config(df=None):
         "MOVEMENT_ANG_VEL_THRESHOLD": 0.05,
         "BG_COLOR": "255,255,255",
         "BAR_COLOR": "0,0,0",
+        "STIMULUS_ANGLE_REFERENCE": "legacy_centered",
     }
     if os.path.exists("settings.json"):
         try:
@@ -104,7 +105,7 @@ def load_config(df=None):
                 loaded = json.load(f)
                 for k in config.keys():
                     if k in loaded:
-                        config[k] = float(loaded[k]) if k not in ["V_BAR_COUNT", "BG_COLOR", "BAR_COLOR"] else loaded[k]
+                        config[k] = float(loaded[k]) if k not in ["V_BAR_COUNT", "BG_COLOR", "BAR_COLOR", "STIMULUS_ANGLE_REFERENCE"] else loaded[k]
         except Exception as e:
             print(f"读取配置失败，使用默认值。错误: {e}")
 
@@ -117,6 +118,7 @@ def load_config(df=None):
             "MOVEMENT_ANG_VEL_THRESHOLD": ("Cfg_MOVEMENT_ANG_VEL_THRESHOLD", float),
             "BG_COLOR": ("Cfg_BG_COLOR", str),
             "BAR_COLOR": ("Cfg_BAR_COLOR", str),
+            "STIMULUS_ANGLE_REFERENCE": ("Cfg_STIMULUS_ANGLE_REFERENCE", str),
         }
         first_row = df.iloc[0]
         for key, (column_name, caster) in snapshot_map.items():
@@ -131,6 +133,9 @@ def load_config(df=None):
 
 
 def _stimulus_angles(cfg):
+    if cfg.get("STIMULUS_ANGLE_REFERENCE") == "front_zero":
+        angles = [i * math.radians(cfg["V_BAR_SPACING_DEG"]) for i in range(cfg["V_BAR_COUNT"])]
+        return 0.0, [(angle + math.pi) % (2 * math.pi) - math.pi for angle in angles]
     first_bar_original = (0 - (cfg["V_BAR_COUNT"] - 1) / 2.0) * math.radians(cfg["V_BAR_SPACING_DEG"])
     rotation_offset = -first_bar_original
     bar_angles = []

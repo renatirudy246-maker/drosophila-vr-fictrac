@@ -134,6 +134,9 @@ def build_state_schedule():
 
 def main():
     selected_schedule = build_state_schedule()
+    stimulus_angle_offsets = [2 * math.pi * i / cfg.V_BAR_COUNT for i in range(cfg.V_BAR_COUNT)]
+    back_bar_index = next((i for i, angle in enumerate(stimulus_angle_offsets)
+                           if math.isclose(angle, math.pi, abs_tol=1e-9)), None)
     renderer = VRRenderer(cfg.SCREEN_FOV_RAD, cfg.BLACK)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -203,7 +206,7 @@ def main():
         wall_center_y = arena_center_y + cfg.VIRTUAL_WALL_DISTANCE_CM * math.sin(anchor["heading"])
 
         # Anchor the bars at trial start; there is no preceding no-stimulus block.
-        for offset_rad in (0.0, math.pi):
+        for offset_rad in stimulus_angle_offsets:
             abs_angle = anchor["heading"] + offset_rad
             bx = arena_center_x + cfg.VIRTUAL_WALL_DISTANCE_CM * math.cos(abs_angle)
             by = arena_center_y + cfg.VIRTUAL_WALL_DISTANCE_CM * math.sin(abs_angle)
@@ -520,7 +523,6 @@ def main():
                                 if abs(angle_diff) < abs(min_angle_diff):
                                     min_angle_diff = angle_diff
                                     nearest_stim_angle = angle_diff
-                                    stimulus_angle_offsets = [0.0, math.pi]
                                     closest_bar_nominal_rad = stimulus_angle_offsets[i] if i < len(stimulus_angle_offsets) else 0.0
                                     stim_rendered_width_rad = rendered_width
                                     stim_visual_half_width_rad = rendered_width / 2.0
@@ -545,8 +547,8 @@ def main():
                         stim_anchor_heading = stimulus_anchor["heading"] if current_stimulus_on and stimulus_anchor else None
                         stim_bar_front_x = v_bar_world_coords[0][0] if current_stimulus_on and len(v_bar_world_coords) > 0 else None
                         stim_bar_front_y = v_bar_world_coords[0][1] if current_stimulus_on and len(v_bar_world_coords) > 0 else None
-                        stim_bar_back_x = v_bar_world_coords[1][0] if current_stimulus_on and len(v_bar_world_coords) > 1 else None
-                        stim_bar_back_y = v_bar_world_coords[1][1] if current_stimulus_on and len(v_bar_world_coords) > 1 else None
+                        stim_bar_back_x = v_bar_world_coords[back_bar_index][0] if current_stimulus_on and back_bar_index is not None else None
+                        stim_bar_back_y = v_bar_world_coords[back_bar_index][1] if current_stimulus_on and back_bar_index is not None else None
 
                         is_moving = (
                             raw_speed > cfg.MOVEMENT_SPEED_THRESHOLD or

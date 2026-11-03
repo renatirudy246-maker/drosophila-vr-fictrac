@@ -44,8 +44,10 @@ class ExperimentLauncher(ctk.CTk):
         self.event_labels = []
         self.colors = self._get_palette(self.theme_mode)
         self.title(self._t("Drosophila VR Experiment Console | 果蝇视觉实验控制台", "Drosophila VR Experiment Console | Drosophila VR Experiment Console"))
-        self.geometry("1280x860")
-        self.minsize(1180, 740)
+        available_height = int((self.winfo_screenheight() - 100) / self._get_window_scaling())
+        window_height = min(820, max(640, available_height))
+        self.geometry(f"1280x{window_height}")
+        self.minsize(1180, 640)
         self.resizable(True, True)
 
         self.fonts = {
@@ -221,6 +223,12 @@ class ExperimentLauncher(ctk.CTk):
             self.theme_toggle_button.configure(text=self._t("切换主题", "Theme") if self.theme_mode == "dark" else self._t("深色主题", "Dark Mode"))
         if hasattr(self, "lang_toggle_button"):
             self.lang_toggle_button.configure(text="EN" if self.language == "zh" else "中文")
+        if hasattr(self, "settings_tabs"):
+            names = (self._t("实验", "Trial"), self._t("高级", "Advanced"))
+            for old, new in zip(self.settings_tab_names, names):
+                if old != new:
+                    self.settings_tabs.rename(old, new)
+            self.settings_tab_names = names
         if hasattr(self, "run_chip_label"):
             self.run_chip_label.configure(text=self._t("待机", "STANDBY"), fg_color="transparent")
         if hasattr(self, "run_chip_dot"):
@@ -452,6 +460,9 @@ class ExperimentLauncher(ctk.CTk):
             except Exception:
                 pass
 
+        if "SINGLE_BRIGHTNESS" not in self.params:
+            self.params["SINGLE_BRIGHTNESS"] = experiment_config.get_single_state(self.params)["brightness"]
+
         theme = str(self.params.get("UI_THEME", "dark")).strip().lower()
         self.theme_mode = "light" if theme == "light" else "dark"
         language = str(self.params.get("UI_LANGUAGE", "zh")).strip().lower()
@@ -462,7 +473,9 @@ class ExperimentLauncher(ctk.CTk):
             self.params["OUTPUT_ROOT_DIR"] = os.path.dirname(os.path.normpath(save_dir)) if self._looks_like_experiment_dir(save_dir) else save_dir
 
         for key, val in self.params.items():
-            if isinstance(val, bool):
+            if key in ("V_BAR_COUNT", "STATE_DURATION_S", "BAR_VISUAL_ANGLE_DEG", "SINGLE_BRIGHTNESS"):
+                self.tk_vars[key] = ctk.StringVar(value=str(val))
+            elif isinstance(val, bool):
                 self.tk_vars[key] = ctk.BooleanVar(value=val)
             elif isinstance(val, int):
                 self.tk_vars[key] = ctk.IntVar(value=val)
@@ -489,6 +502,9 @@ class ExperimentLauncher(ctk.CTk):
         for key, var in self.tk_vars.items():
             self.params[key] = var.get()
         experiment_config.get_single_state(self.params)
+        self.params["V_BAR_COUNT"] = int(float(self.params["V_BAR_COUNT"]))
+        for key in ("STATE_DURATION_S", "BAR_VISUAL_ANGLE_DEG", "SINGLE_BRIGHTNESS"):
+            self.params[key] = float(self.params[key])
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
             json.dump(self.params, f, indent=4)
 
@@ -847,50 +863,56 @@ class ExperimentLauncher(ctk.CTk):
         browse_button._role_style = "neutral"
         self.widget_groups["buttons"].append(browse_button)
 
-        groups = ctk.CTkScrollableFrame(
-            body,
-            fg_color=self.colors["panel"],
-            corner_radius=4,
-            border_width=1,
-            border_color=self.colors["border"],
-            label_text="",
-        )
-        groups.grid(row=1, column=0, sticky="nsew", padx=6, pady=(0, 4))
+        self.settings_tabs = ctk.CTkTabview(body, corner_radius=4)
+        self.settings_tabs.grid(row=1, column=0, sticky="nsew", padx=6, pady=(0, 4))
+        self.settings_tab_names = (self._t("实验", "Trial"), self._t("高级", "Advanced"))
+        pages = [self.settings_tabs.add(name) for name in self.settings_tab_names]
+        for page in pages:
+            page.grid_rowconfigure(0, weight=1)
+            page.grid_columnconfigure(0, weight=1)
+        groups = ctk.CTkScrollableFrame(pages[0], fg_color="transparent", corner_radius=0, label_text="")
+        groups.grid(row=0, column=0, sticky="nsew")
         groups.grid_columnconfigure(0, weight=1)
         self.param_groups_frame = groups
         self.widget_groups["frames"].append(groups)
 
+        advanced = ctk.CTkScrollableFrame(pages[1], fg_color="transparent", corner_radius=0, label_text="")
+        advanced.grid(row=0, column=0, sticky="nsew")
+        advanced.grid_columnconfigure(0, weight=1)
+        self.widget_groups["frames"].append(advanced)
+        self.advanced_params_frame = advanced
+        self.param_widgets = {}
+
+        self._create_param_group(groups, "单次实验条件", "Trial Condition", {
+            "SINGLE_BG_NAME": ("背景", "Background"),
+            "STATE_DURATION_S": ("时长 (s)", "Duration (s)"),
+            "SINGLE_BRIGHTNESS": ("亮度 (0-1)", "Brightness (0-1)"),
+            "SINGLE_STIMULUS_ON": ("视觉条纹", "Visual stripes"),
+            "BAR_VISUAL_ANGLE_DEG": ("条纹宽度 (deg)", "Stripe width (deg)"),
+            "V_BAR_COUNT": ("条纹数量", "Stripe count"),
+        })
         self._create_param_group(groups, "样本信息", "Sample Info", {
-            "WING_CONDITION": ("翅膀状态", "Wing state"),
             "FLY_ID": ("果蝇编号", "Fly ID"),
             "EXPERIMENT_ID": ("实验编号", "Trial ID"),
         })
-        self._create_param_group(groups, "实验流程", "Experiment Flow", {
+        self._create_param_group(advanced, "采集设置", "Acquisition", {
             "UDP_PORT": ("FicTrac 端口", "FicTrac port"),
-            "STATE_DURATION_S": ("状态时长 (s)", "State duration (s)"),
+            "WING_CONDITION": ("翅膀状态", "Wing state"),
+            "SIMULATION_MODE": ("仿真模式", "Simulation mode"),
         })
-        self._create_param_group(groups, "单次实验条件", "Trial Condition", {
-            "SINGLE_BG_NAME": ("背景", "Background"),
-            "SINGLE_BRIGHTNESS_LABEL": ("亮度等级", "Brightness level"),
-            "SINGLE_STIMULUS_ON": ("视觉条纹", "Visual stripes"),
-        })
-        self._create_param_group(groups, "背景颜色", "Background Colors", {
+        self._create_param_group(advanced, "背景标定", "Background Calibration", {
             "PRE_START_BG_COLOR": ("开始前背景", "Pre-start background"),
             "PRE_START_BRIGHTNESS": ("开始前亮度", "Pre-start brightness"),
             "STATE_WHITE_COLOR": ("白光 RGB", "White RGB"),
             "STATE_GREEN_COLOR": ("绿光 RGB", "Green RGB"),
             "STATE_RED_COLOR": ("红光 RGB", "Red RGB"),
         })
-        self._create_brightness_matrix_group(groups)
-        self._create_param_group(groups, "视觉刺激", "Visual Stimulus", {
+        self._create_param_group(advanced, "视觉刺激", "Visual Stimulus", {
             "BAR_COLOR": ("条纹颜色", "Bar color"),
-            "BAR_VISUAL_ANGLE_DEG": ("条纹视角(deg)", "Bar visual angle (deg)"),
-            "H_BAR_COUNT": ("横条数量", "Horizontal bars"),
-            "H_BAR_SPACING_CM": ("横条间距(cm)", "Horizontal spacing (cm)"),
         })
-        self._create_param_group(groups, "空间标定", "Arena Geometry", {
+        self._create_param_group(advanced, "空间标定", "Arena Geometry", {
             "SCREEN_FOV_DEG": ("屏幕 FOV (deg)", "Screen FOV (deg)"),
-            "VIRTUAL_WALL_DISTANCE_CM": ("屏幕距离 (cm)", "Wall distance (cm)"),
+            "VIRTUAL_WALL_DISTANCE_CM": ("虚拟墙距离 (cm)", "Virtual wall (cm)"),
             "SPHERE_RADIUS_CM": ("小球半径(cm)", "Sphere radius (cm)"),
             "MONITOR_SMOOTHING_FACTOR": ("监测平滑(0-1)", "Monitor smoothing (0-1)"),
         })
@@ -899,9 +921,6 @@ class ExperimentLauncher(ctk.CTk):
         bottom.grid(row=2, column=0, sticky="sew", padx=10, pady=(4, 8))
         bottom.grid_columnconfigure(0, weight=1)
         self.widget_groups["frames"].append(bottom)
-        sim_switch = ctk.CTkSwitch(bottom, text=self._t("仿真模式", "Simulation Mode"), variable=self.tk_vars["SIMULATION_MODE"], font=self.fonts["body"])
-        sim_switch.grid(row=0, column=0, sticky="w")
-        self._register_localized(sim_switch, "仿真模式", "Simulation Mode")
         save_button = ctk.CTkButton(
             bottom,
             text=self._t("保存配置", "Save Config"),
@@ -1056,20 +1075,45 @@ class ExperimentLauncher(ctk.CTk):
             self._register_localized(label, text_zh, text_en)
             self.widget_groups["labels"].append(label)
 
-            if key in ("SINGLE_BG_NAME", "SINGLE_BRIGHTNESS_LABEL"):
+            if key == "SINGLE_BRIGHTNESS":
+                label.pack(anchor="w")
+                controls = ctk.CTkFrame(row, fg_color="transparent")
+                controls.pack(fill="x", pady=(2, 0))
+                entry = ctk.CTkEntry(controls, textvariable=self.tk_vars[key], width=64, height=26, corner_radius=4)
+                entry.pack(side="right", padx=(8, 0))
+                slider = ctk.CTkSlider(
+                    controls, from_=0, to=1, number_of_steps=1000,
+                    command=lambda value: self.tk_vars["SINGLE_BRIGHTNESS"].set(round(value, 3)),
+                )
+                slider.set(float(self.tk_vars[key].get()))
+                def update_slider(*_, slider=slider, variable=self.tk_vars[key]):
+                    try:
+                        value = float(variable.get())
+                        if math.isfinite(value) and 0 <= value <= 1:
+                            slider.set(value)
+                    except ValueError:
+                        pass
+                self.tk_vars[key].trace_add("write", update_slider)
+                slider.pack(side="left", fill="x", expand=True)
+                self.widget_groups["inputs"].append(entry)
+                control = entry
+            elif key in ("SINGLE_BG_NAME", "SINGLE_BRIGHTNESS_LABEL"):
                 label.pack(side="left", fill="x", expand=True)
                 options = ["white", "green", "red"] if key == "SINGLE_BG_NAME" else ["dark", "medium", "bright"]
                 menu = ctk.CTkOptionMenu(row, variable=self.tk_vars[key], values=options, width=112, height=26)
                 menu.pack(side="right", pady=1)
-            elif key == "SINGLE_STIMULUS_ON":
+                control = menu
+            elif key in ("SINGLE_STIMULUS_ON", "SIMULATION_MODE"):
                 label.pack(side="left", fill="x", expand=True)
                 switch = ctk.CTkSwitch(row, text="", variable=self.tk_vars[key], width=40)
                 switch.pack(side="right", pady=1)
+                control = switch
             elif key.endswith("_OPTIONS"):
                 label.pack(fill="x", anchor="w", pady=(0, 4))
                 entry = ctk.CTkEntry(row, textvariable=self.tk_vars[key], height=26, border_width=1, corner_radius=4, font=ctk.CTkFont(family="Consolas", size=11))
                 entry.pack(fill="x")
                 self.widget_groups["inputs"].append(entry)
+                control = entry
             elif "COLOR" in key:
                 label.pack(side="left", fill="x", expand=True)
                 hex_color = self._rgb_to_hex(self.tk_vars[key].get())
@@ -1088,11 +1132,14 @@ class ExperimentLauncher(ctk.CTk):
                 color_btn.pack(side="right", padx=(0, 4), pady=1)
                 color_btn._role_style = "color"
                 self.widget_groups["buttons"].append(color_btn)
+                control = color_btn
             else:
                 label.pack(side="left", fill="x", expand=True)
                 entry = ctk.CTkEntry(row, textvariable=self.tk_vars[key], width=82, height=26, border_width=1, corner_radius=4, font=ctk.CTkFont(family="Consolas", size=12))
                 entry.pack(side="right", pady=1)
                 self.widget_groups["inputs"].append(entry)
+                control = entry
+            self.param_widgets[key] = {"row": row, "label": label, "control": control, "group": parent}
             if idx < len(items) - 1:
                 separator = ctk.CTkFrame(card, height=1, fg_color=self.colors["separator"])
                 separator.pack(fill="x", padx=12)
@@ -1220,8 +1267,8 @@ class ExperimentLauncher(ctk.CTk):
 
     def _state_brightness_label(self, brightness_name):
         if self.language == "zh":
-            return {"dark": "弱", "medium": "中", "bright": "强"}.get(str(brightness_name), str(brightness_name))
-        return {"dark": "Dark", "medium": "Medium", "bright": "Bright"}.get(str(brightness_name), str(brightness_name))
+            return {"dark": "弱", "medium": "中", "bright": "强", "custom": "自定义"}.get(str(brightness_name), str(brightness_name))
+        return {"dark": "Dark", "medium": "Medium", "bright": "Bright", "custom": "Custom"}.get(str(brightness_name), str(brightness_name))
 
     def _create_run_progress_card(self, parent, row):
         card = ctk.CTkFrame(parent, corner_radius=4, fg_color=self.colors["panel_2"], border_width=1, border_color=self.colors["border"])

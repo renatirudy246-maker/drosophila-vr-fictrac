@@ -24,6 +24,7 @@ class ConditionTests(unittest.TestCase):
             with self.subTest(bg=bg, level=level, stimulus=stimulus):
                 values = dict(config._cfg, SINGLE_BG_NAME=bg,
                               SINGLE_BRIGHTNESS_LABEL=level, SINGLE_STIMULUS_ON=stimulus)
+                values.pop("SINGLE_BRIGHTNESS", None)
                 with patch.dict(config._cfg, values, clear=True):
                     states = main.build_state_schedule()
                 self.assertEqual(len(states), 1)
@@ -56,10 +57,25 @@ class ConditionTests(unittest.TestCase):
             {"STATE_WHITE_COLOR": "256,0,0"},
             {"STATE_WHITE_BRIGHT_BRIGHTNESS": -0.1},
             {"STATE_WHITE_BRIGHT_BRIGHTNESS": float("nan")},
+            {"SINGLE_BRIGHTNESS": -0.01},
+            {"SINGLE_BRIGHTNESS": 1.01},
+            {"SINGLE_BRIGHTNESS": float("nan")},
+            {"V_BAR_COUNT": 0},
+            {"V_BAR_COUNT": 2.5},
+            {"V_BAR_COUNT": 13},
+            {"BAR_VISUAL_ANGLE_DEG": 0},
+            {"BAR_VISUAL_ANGLE_DEG": 90},
         ]
         for values in cases:
             with self.subTest(values=values), self.assertRaises(ValueError):
                 config.get_single_state(values)
+
+    def test_direct_brightness_overrides_old_matrix(self):
+        for bg in ("white", "green", "red"):
+            with self.subTest(bg=bg):
+                state = config.get_single_state({"SINGLE_BG_NAME": bg, "SINGLE_BRIGHTNESS": 0.42})
+                self.assertEqual(state["brightness"], 0.42)
+                self.assertEqual(state["brightness_label"], "custom")
 
 
 def packet(frame, forward, delta_ms=100, heading=0, prefix=True):
@@ -74,7 +90,8 @@ def packet(frame, forward, delta_ms=100, heading=0, prefix=True):
     return (("FT, " if prefix else "") + ", ".join(map(str, columns))).encode()
 
 
-def run_synthetic_trial(stimulus, destination, prefix=True, start_with_mouse=False, delta_ms=100):
+def run_synthetic_trial(stimulus, destination, prefix=True, start_with_mouse=False, delta_ms=100,
+                        bar_count=2, brightness=None):
     state = {"tick": 0, "draws": [], "live": [], "loggers": []}
     steps = math.ceil(20000 / delta_ms)
     batches = {
@@ -130,9 +147,14 @@ def run_synthetic_trial(stimulus, destination, prefix=True, start_with_mouse=Fal
         return [SimpleNamespace(type=main.pygame.KEYDOWN, key=main.pygame.K_SPACE)]
 
     values = dict(config._cfg, SINGLE_BG_NAME="green", SINGLE_BRIGHTNESS_LABEL="medium",
-                  SINGLE_STIMULUS_ON=stimulus)
+                  SINGLE_STIMULUS_ON=stimulus, V_BAR_COUNT=bar_count)
+    values.pop("SINGLE_BRIGHTNESS", None)
+    if brightness is not None:
+        values["SINGLE_BRIGHTNESS"] = brightness
     with contextlib.ExitStack() as stack:
         stack.enter_context(patch.dict(config._cfg, values, clear=True))
+        stack.enter_context(patch.object(config, "V_BAR_COUNT", bar_count))
+        stack.enter_context(patch.object(config, "V_BAR_SPACING_DEG", 360 / bar_count))
         stack.enter_context(patch.object(config, "SAVE_DIR", str(destination)))
         stack.enter_context(patch.object(main, "VRRenderer", Renderer))
         stack.enter_context(patch.object(main.socket, "socket", return_value=Socket()))
@@ -189,8 +211,33 @@ class TrialLoopTests(unittest.TestCase):
             self.assertEqual(result["live"][-1]["time_s"], 20)
             self.assertGreater(result["remaining_packets"], 0)
 
+    def test_count_and_brightness_reach_rendering_and_csv(self):
+        for count in (1, 2, 3, 4, 12):
+            with self.subTest(count=count), tempfile.TemporaryDirectory() as tmp:
+                result = run_synthetic_trial(True, Path(tmp), bar_count=count, brightness=0.42)
+                draw = next(draw for draw in result["draws"] if draw[0] >= 4)
+                self.assertEqual(len(draw[1][4]), count)
+                self.assertEqual(draw[1][0], 0.42)
+                rows = result["rows"]
+                self.assertEqual({row["State_Brightness"] for row in rows}, {0.42})
+                self.assertEqual({row["State_Brightness_Label"] for row in rows}, {"custom"})
+                self.assertEqual({row["Cfg_V_BAR_COUNT"] for row in rows}, {count})
+                self.assertEqual({row["Cfg_V_BAR_SPACING_DEG"] for row in rows}, {360 / count})
+                self.assertEqual(rows[0]["Stim_Bar_Back_X_cm"] == "", count % 2 == 1)
+                self.assertEqual(rows[0]["Cfg_STIMULUS_ANGLE_REFERENCE"], "front_zero")
+
 
 class PlotTests(unittest.TestCase):
+    def test_current_polar_angles_have_no_extra_rotation(self):
+        from plot_polar_preference import _stimulus_angles
+        for count in (1, 2, 3, 4, 12):
+            rotation, angles = _stimulus_angles({"V_BAR_COUNT": count,
+                                                "V_BAR_SPACING_DEG": 360 / count,
+                                                "STIMULUS_ANGLE_REFERENCE": "front_zero"})
+            self.assertEqual(rotation, 0)
+            self.assertEqual(len(angles), count)
+            self.assertEqual(angles[0], 0)
+
     def test_plots_for_single_condition_trials(self):
         import matplotlib
         matplotlib.use("Agg")

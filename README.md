@@ -30,20 +30,26 @@ python launcher.py
 
 ## Select a Condition
 
-Edit these keys in `settings.json`, or use the launcher's Trial Condition controls and save the configuration before starting:
+Use the launcher's Trial tab for background, duration, brightness, stripe enable/width/count, and sample IDs. Hardware, RGB calibration, pre-start appearance, and recording settings are on the Advanced tab. The original nine-cell brightness matrix is not shown. Save the configuration before starting.
+
+The equivalent keys in `settings.json` are:
 
 ```json
 "STATE_DURATION_S": 20,
 "SINGLE_BG_NAME": "white",
-"SINGLE_BRIGHTNESS_LABEL": "bright",
-"SINGLE_STIMULUS_ON": false
+"SINGLE_BRIGHTNESS": 0.197,
+"SINGLE_STIMULUS_ON": false,
+"BAR_VISUAL_ANGLE_DEG": 30.0,
+"V_BAR_COUNT": 2
 ```
 
-`SINGLE_BG_NAME` accepts `white`, `green`, or `red`; `SINGLE_BRIGHTNESS_LABEL` accepts `dark`, `medium`, or `bright`; `SINGLE_STIMULUS_ON` is a JSON boolean (`true` for stripes, `false` for no stripes). The example selects white, bright, and no stripes. Brightness is read from the corresponding calibrated `STATE_<COLOR>_<LEVEL>_BRIGHTNESS` value, not replaced by 100% intensity.
+`SINGLE_BG_NAME` accepts `white`, `green`, or `red`. `SINGLE_BRIGHTNESS` directly sets the display intensity from 0 to 1, independent of background selection; the default 0.197 preserves the previous calibrated white/bright value. `SINGLE_STIMULUS_ON` is a JSON boolean (`true` for stripes, `false` for no stripes). Trials using a direct intensity are logged with brightness label `custom`. Older settings without `SINGLE_BRIGHTNESS` still resolve `SINGLE_BRIGHTNESS_LABEL` through the original calibrated values.
+
+`V_BAR_COUNT` accepts integers from 1 to 12. Vertical stripes are spaced evenly around the virtual fly, starting at its trial-start heading; two stripes retain the original front/back layout. Spacing is calculated from the count, rather than the legacy `V_BAR_SPACING_DEG` setting. Stripe width is the nominal angular width at the anchor position; it must be 21.92-46.99 degrees, matching the renderer's existing angular limits. Apparent width still varies with the fly's virtual position within these limits. `Stim_Bar_Back_*` is blank when no stripe is placed exactly behind the anchor (odd stripe counts).
 
 Each run presents just that condition, without randomization or an additional 180-second block. It stops after the configured sampling duration (20 seconds by default); a lack of incoming tracking data pauses the sampling clock. With stripes enabled, their virtual-world positions are anchored using the first new FicTrac sample after trial start. Keep the same Fly ID for repeat trials on the same animal and use Trial ID to distinguish recordings.
 
-CSV rows retain `State_Index = 1` and record the selected background, calibrated brightness, and stimulus flag. Configuration snapshot columns identify the `single_condition` protocol, condition settings, Fly ID, and Trial ID. Trajectory and timeline plots work with a single state; polar preference is only generated for trials with visual stripes.
+CSV rows retain `State_Index = 1` and record the actual background, brightness, and stimulus flag. Configuration snapshot columns identify the `single_condition` protocol, stripe count/spacing, condition settings, Fly ID, and Trial ID. Trajectory and timeline plots work with a single state; polar preference is only generated for trials with visual stripes. New recordings declare the `front_zero` angular reference, which the polar plot uses without the legacy centering rotation.
 
 The physical screen is approximately 4 cm from the fly. `VIRTUAL_WALL_DISTANCE_CM` describes the virtual scene, not this physical distance.
 

@@ -34,7 +34,7 @@ DEFAULT_BRIGHTNESS = float(_cfg.get("DEFAULT_BRIGHTNESS", 0.41))
 
 # 条纹参数
 V_BAR_COUNT = int(_cfg.get("V_BAR_COUNT", 2))
-V_BAR_SPACING_DEG = float(_cfg.get("V_BAR_SPACING_DEG", 150.0))
+V_BAR_SPACING_DEG = 360.0 / max(V_BAR_COUNT, 1)
 
 H_BAR_COUNT = int(_cfg.get("H_BAR_COUNT", 0))
 H_BAR_SPACING_CM = float(_cfg.get("H_BAR_SPACING_CM", 6.0))
@@ -171,15 +171,24 @@ def get_single_state(settings=None):
     duration = float(values.get("STATE_DURATION_S", 20.0))
     if not math.isfinite(duration) or duration <= 0:
         raise ValueError("STATE_DURATION_S must be finite and positive")
+    count = float(values.get("V_BAR_COUNT", 2))
+    if not math.isfinite(count) or not count.is_integer() or not 1 <= count <= 12:
+        raise ValueError("V_BAR_COUNT must be an integer from 1 to 12; use the stripe switch to disable stripes")
+    width = float(values.get("BAR_VISUAL_ANGLE_DEG", 30.0))
+    if not math.isfinite(width) or not 21.92 <= width <= 46.99:
+        raise ValueError("BAR_VISUAL_ANGLE_DEG must be between 21.92 and 46.99 degrees")
     color_key = f"STATE_{bg_name.upper()}_COLOR"
     color_str = str(values.get(color_key, globals()[color_key + "_STR"]))
     color = tuple(int(channel) for channel in color_str.split(","))
     if len(color) != 3 or any(channel < 0 or channel > 255 for channel in color):
         raise ValueError(f"{color_key} must contain three RGB values from 0 to 255")
     brightness_key = f"STATE_{bg_name.upper()}_{level.upper()}_BRIGHTNESS"
-    brightness = float(values.get(brightness_key, globals()[brightness_key]))
+    direct_brightness = values.get("SINGLE_BRIGHTNESS")
+    brightness = float(direct_brightness if direct_brightness is not None else values.get(brightness_key, globals()[brightness_key]))
     if not math.isfinite(brightness) or not 0 <= brightness <= 1:
-        raise ValueError(f"{brightness_key} must be between 0 and 1")
+        raise ValueError("Brightness must be between 0 and 1")
+    if direct_brightness is not None:
+        level = "custom"
     block = "stimulus" if stimulus_on else "no_stimulus"
     return {
         "index": 1,
@@ -221,9 +230,11 @@ def get_experiment_config_snapshot(extra_config=None):
         "STATE_DURATION_S": STATE_DURATION_S,
         "EXPERIMENT_PROTOCOL": "single_condition",
         "STATE_COUNT": 1,
+        "STIMULUS_ANGLE_REFERENCE": "front_zero",
         "SINGLE_BG_NAME": state["bg_name"],
         "SINGLE_BRIGHTNESS_LABEL": state["brightness_label"],
         "SINGLE_STIMULUS_ON": state["stimulus_on"],
+        "SINGLE_BRIGHTNESS": state["brightness"],
         "FLY_ID": str(_cfg.get("FLY_ID", "01")),
         "EXPERIMENT_ID": str(_cfg.get("EXPERIMENT_ID", "1")),
         "PRE_START_BG_COLOR": PRE_START_BG_COLOR_STR,
