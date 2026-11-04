@@ -2,7 +2,7 @@
 
 A Windows-based experiment system for a tethered fly on a spherical treadmill. It receives FicTrac tracking data over UDP, displays visual stimuli on a U-shaped screen, and records behavior and trajectories.
 
-This version runs one manually selected condition per trial, with a default duration of 20 seconds and `VIRTUAL_WALL_DISTANCE_CM = 9.75`. The original 18-state, 360-second protocol with a 10.0 cm virtual-wall distance is preserved in [drosophila-vr-fictrac-360s](https://github.com/renatirudy246-maker/drosophila-vr-fictrac-360s). This single-condition variant does not change the protocol used to collect historical data or make segments from the same fly independent biological samples.
+This repository provides a single-condition acquisition interface with a default trial duration of 20 s. The background, brightness and target-presence settings are selected before each trial, and recording ends when the configured sampling duration is reached.
 
 ## Setup
 
