@@ -10,7 +10,7 @@ Use 64-bit Windows 10/11 and Python 3.9-3.11 with a compatible camera and displa
 
 ### Complete Windows Package
 
-Download [drosophila-vr-fictrac-windows-v1.1.2.zip](https://github.com/renatirudy246-maker/drosophila-vr-fictrac/releases/download/v1.1.2/drosophila-vr-fictrac-windows-v1.1.2.zip) from the [v1.1.2 Release](https://github.com/renatirudy246-maker/drosophila-vr-fictrac/releases/tag/v1.1.2). Extract the entire archive, keeping its folder structure. It includes the Python program and the `fictrac/` runtime folder with `fictrac.exe`, `configGui.exe`, OpenCV/NLopt DLLs, configuration and calibration images. No separate FicTrac download or build is needed for this package.
+Download [drosophila-vr-fictrac-windows-v1.1.3.zip](https://github.com/renatirudy246-maker/drosophila-vr-fictrac/releases/download/v1.1.3/drosophila-vr-fictrac-windows-v1.1.3.zip) from the [v1.1.3 Release](https://github.com/renatirudy246-maker/drosophila-vr-fictrac/releases/tag/v1.1.3). Extract the entire archive, keeping its folder structure. It includes the Python program and the `fictrac/` runtime folder with `fictrac.exe`, `configGui.exe`, OpenCV/NLopt DLLs, configuration and calibration images. No separate FicTrac download or build is needed for this package.
 
 Activate your Python environment, open a terminal in the extracted project directory, and run:
 
@@ -37,7 +37,7 @@ Recalibrate the supplied configuration for your apparatus before collecting data
 
 ## Run
 
-The launcher, dialogs, terminal messages and generated plot labels are English-only. Legacy saved language preferences are normalized to English; there is no language-switch control. Language changes do not change acquisition parameters, CSV field names or numerical calculations. Native SolidWorks files are preserved; see [CAD language-check limitations](hardware/README.md) before claiming that their internal names are English-only.
+The launcher, dialogs, terminal messages and generated plot labels are English-only. Legacy saved language preferences are normalized to English; there is no language-switch control. Language changes do not change acquisition parameters, CSV field names or numerical calculations. See the [hardware package and CAD language notes](hardware/README.md) before claiming that native CAD internal names are English-only.
 
 ```powershell
 python launcher.py
@@ -113,7 +113,13 @@ Outputs are saved to `exp_data/` by default, including frame-level and state-sum
 
 Run the offline protocol and layout checks with `python -m unittest discover -s tests -v`. A separate desktop GUI check is available with `python tests/check_launcher_ui.py`; it uses temporary files and simulated process launches, not a camera. These checks do not replace camera or display calibration on the apparatus. The optimized launcher was also compared locally with the previous teacher UI using historical FicTrac data, independent video-window playback and complete 20-second UDP replays; those raw experimental records are not included in this repository.
 
-Hardware models are grouped under `screen_support/`, `ball_holder/`, `circuit_board/`, `camera_mount/`, and `infrared_light/`. The assembly file is [platform_assembly.SLDASM](hardware/platform_assembly.SLDASM). Only filesystem names have been translated; internal CAD references have not been updated, so opening the assembly may require relinking components. Hardware files are optional and are not needed to run the program.
+## Hardware
+
+![Platform assembly](hardware/platform_assembly.png)
+
+Hardware models are grouped under `screen_support/`, `ball_holder/`, `circuit_board/`, `camera_mount/`, and `infrared_light/`. The rebuilt [platform_assembly.SLDASM](hardware/platform_assembly.SLDASM) contains 15 assembled component instances. The package retains all 27 part files and includes the baseplate's linked STEP source. Keep the complete `hardware/` directory together and open the assembly in SolidWorks 2024 or a compatible later version. The preview above can be viewed directly on GitHub; download the complete files for 3D inspection and editing.
+
+The assembly is checked by opening it from a different directory, with all component models and the linked STEP source resolved inside that directory. See [hardware package notes](hardware/README.md) for validation scope and native CAD language limitations. Hardware files are optional and are not needed to run the program.
 
 ## Attribution
 
