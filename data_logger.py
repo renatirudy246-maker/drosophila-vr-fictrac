@@ -384,16 +384,16 @@ class ExperimentLogger:
             writer.writeheader()
             writer.writerows(phase_summaries)
 
-        print(f"\n[OK] 原始数据成功保存至: {full_save_path}")
-        print(f"[OK] 阶段汇总成功保存至: {full_summary_path}")
-        print("\n================ 果蝇实验状态总结 ================")
+        print(f"\n[OK] Frame data saved to: {full_save_path}")
+        print(f"[OK] State summary saved to: {full_summary_path}")
+        print("\n================ Drosophila Experiment State Summary ================")
         for row in phase_summaries:
             print(
-                f"  > 状态 {row['Phase']} ({row.get('State_Info', '')}): 活动力 {row['Moving_Ratio_pct']:6.2f}% | "
-                f"总距离 {row['Total_Distance_cm']:7.2f} cm | "
-                f"平均速度 {row['Mean_Speed_cm_s']:6.2f} cm/s | "
-                f"朝向刺激(运动帧) {row['Facing_AnyStim_MovingRatio_pct']:6.2f}% | "
-                f"朝刺激移动(运动帧) {row['Approaching_AnyStim_MovingRatio_pct']:6.2f}%"
+                f"  > State {row['Phase']} ({row.get('State_Info', '')}): Moving ratio {row['Moving_Ratio_pct']:6.2f}% | "
+                f"Total distance {row['Total_Distance_cm']:7.2f} cm | "
+                f"Mean speed {row['Mean_Speed_cm_s']:6.2f} cm/s | "
+                f"Facing stimulus (moving frames) {row['Facing_AnyStim_MovingRatio_pct']:6.2f}% | "
+                f"Approaching stimulus (moving frames) {row['Approaching_AnyStim_MovingRatio_pct']:6.2f}%"
             )
         print("==================================================\n")
 

@@ -29,7 +29,7 @@ class ExperimentController(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.theme_mode = "dark"
-        self.language = "zh"
+        self.language = "en"
         self.localized_widgets = []
         self.widget_groups = {
             "frames": [],
@@ -45,7 +45,7 @@ class ExperimentController(ctk.CTk):
         }
         self.event_labels = []
         self.colors = self._get_palette(self.theme_mode)
-        self.title(self._t("Drosophila VR Experiment Console | 果蝇视觉实验控制台", "Drosophila VR Experiment Console | Drosophila VR Experiment Console"))
+        self.title(self._t("Drosophila VR Experiment Console", "Drosophila VR Experiment Console | Drosophila VR Experiment Console"))
         available_height = int((self.winfo_screenheight() - 100) / self._get_window_scaling())
         window_height = min(820, max(640, available_height))
         self.geometry(f"1280x{window_height}")
@@ -111,7 +111,7 @@ class ExperimentController(ctk.CTk):
         self.create_ui()
         self._reset_session_display(
             clear_log=True,
-            initial_message=self._t("等待开始；保存配置后启动跟踪和 VR。", "Waiting; save config, then start tracking and VR."),
+            initial_message=self._t("Waiting; save config, then start tracking and VR.", "Waiting; save config, then start tracking and VR."),
             reset_live_file=True,
         )
         self._update_clock()
@@ -160,7 +160,7 @@ class ExperimentController(ctk.CTk):
         }
 
     def _t(self, zh, en):
-        return zh if self.language == "zh" else en
+        return en
 
     def _pair(self, value):
         if isinstance(value, (tuple, list)) and len(value) >= 2:
@@ -168,47 +168,9 @@ class ExperimentController(ctk.CTk):
         return value, value
 
     def _state_word(self, english):
-        mapping = {
-            "IDLE": "空闲",
-            "Standby": "待机",
-            "Ready": "就绪",
-            "RUNNING": "运行中",
-            "STOPPED": "已停止",
-            "CAMERA": "相机中",
-            "LIVE": "实时",
-            "LAST": "上次",
-        }
-        if self.language == "zh":
-            return mapping.get(english, english)
         return english
 
     def _translate_status_text(self, text):
-        raw = str(text)
-        prefix = ""
-        if raw.startswith("●"):
-            prefix = "● "
-            raw = raw.replace("●", "", 1).strip()
-        mapping = {
-            "IDLE": "空闲",
-            "Standby": "待机",
-            "Ready": "就绪",
-            "RUNNING": "运行中",
-            "STOPPED": "已停止",
-            "CAMERA": "相机中",
-        }
-        reverse = {v: k for k, v in mapping.items()}
-        if self.language == "zh" and raw in mapping:
-            return prefix + mapping[raw]
-        if self.language == "en" and raw in reverse:
-            return prefix + reverse[raw]
-        if self.language == "zh" and raw.startswith("Phase "):
-            return prefix + "阶段 " + raw[6:]
-        if self.language == "en" and raw.startswith("阶段 "):
-            return prefix + "Phase " + raw[3:]
-        if self.language == "zh" and raw.startswith("State "):
-            return prefix + "状态 " + raw[6:]
-        if self.language == "en" and raw.startswith("状态 "):
-            return prefix + "State " + raw[3:]
         return text
 
     def _register_localized(self, widget, zh, en, attr="text"):
@@ -244,7 +206,7 @@ class ExperimentController(ctk.CTk):
         self._save_ui_preferences()
 
     def toggle_language(self):
-        self.language = "en" if self.language == "zh" else "zh"
+        self.language = "en"
         self._apply_language()
         self._save_ui_preferences()
 
@@ -252,7 +214,7 @@ class ExperimentController(ctk.CTk):
         default_save_dir = os.path.join(os.getcwd(), "exp_data")
         default_config = {
             "UI_THEME": "dark",
-            "UI_LANGUAGE": "zh",
+            "UI_LANGUAGE": "en",
             "SAVE_DIR": default_save_dir,
             "OUTPUT_ROOT_DIR": default_save_dir,
             "WING_CONDITION": "wing",
@@ -315,8 +277,8 @@ class ExperimentController(ctk.CTk):
 
         theme = str(self.params.get("UI_THEME", "dark")).strip().lower()
         self.theme_mode = "light" if theme == "light" else "dark"
-        language = str(self.params.get("UI_LANGUAGE", "zh")).strip().lower()
-        self.language = "en" if language == "en" else "zh"
+        self.language = "en"
+        self.params["UI_LANGUAGE"] = "en"
 
         if "OUTPUT_ROOT_DIR" not in self.params or not self.params.get("OUTPUT_ROOT_DIR"):
             save_dir = str(self.params.get("SAVE_DIR", default_save_dir))
@@ -345,6 +307,7 @@ class ExperimentController(ctk.CTk):
             pass
 
     def save_config(self):
+        self.language = "en"
         if "UI_THEME" in self.tk_vars:
             self.tk_vars["UI_THEME"].set(self.theme_mode)
         if "UI_LANGUAGE" in self.tk_vars:
@@ -362,18 +325,18 @@ class ExperimentController(ctk.CTk):
         try:
             self.save_config()
             self._set_event("Config saved")
-            messagebox.showinfo("Success", "配置已保存，下次运行将自动加载。")
+            messagebox.showinfo("Success", "Configuration saved. It will load on the next launch.")
         except Exception as e:
-            messagebox.showerror("Error", f"保存参数失败: {e}")
+            messagebox.showerror("Error", f"Could not save parameters: {e}")
 
     def browse_save_dir(self):
         if any(process is not None and process.poll() is None
                for process in (self.fictrac_process, self.vr_process)):
-            messagebox.showerror("提示", "跟踪或 VR 正在运行，请先停止，再更改导出路径。")
+            messagebox.showerror("Notice", "Stop tracking and VR before changing the export path.")
             return
         current_dir = self.tk_vars["SAVE_DIR"].get()
         initial_dir = current_dir if os.path.exists(current_dir) else os.getcwd()
-        selected_dir = filedialog.askdirectory(initialdir=initial_dir, title="选择实验数据保存文件夹")
+        selected_dir = filedialog.askdirectory(initialdir=initial_dir, title="Select the experiment data directory")
         if selected_dir:
             selected_dir = os.path.normpath(selected_dir)
             self.tk_vars["SAVE_DIR"].set(selected_dir)
@@ -439,7 +402,7 @@ class ExperimentController(ctk.CTk):
         folder_name = self._experiment_folder_name()
         experiment_dir = os.path.join(group_dir, folder_name)
         if int(self._format_fly_id()) in existing_fly_ids(root_dir, wing) or os.path.exists(experiment_dir):
-            raise FileExistsError(f"{wing} 组的果蝇编号 {self._format_fly_id()} 已使用。\n请使用新的果蝇编号，已有数据不会覆盖。")
+            raise FileExistsError(f"{wing} group fly ID {self._format_fly_id()} is already in use.\nChoose a new fly ID; existing data will not be overwritten.")
         return experiment_dir
 
     def _update_save_path_label(self):
@@ -463,7 +426,7 @@ class ExperimentController(ctk.CTk):
             expected_dir = os.path.join(self._get_output_root_dir(), self._normalized_wing_condition(),
                                         self._experiment_folder_name())
             if os.path.normcase(os.path.abspath(self.current_experiment_dir)) != os.path.normcase(expected_dir):
-                raise ValueError("导出路径、果蝇编号、翅膀状态或光照条件已改变。请先停止当前跟踪，再开始新实验。")
+                raise ValueError("The export path, fly ID, wing group or light condition has changed. Stop tracking before starting a new experiment.")
             self.save_config()
             with open(os.path.join(self.current_experiment_dir, "experiment_settings.json"), "w", encoding="utf-8") as file:
                 json.dump(self.params, file, indent=4)
@@ -543,10 +506,10 @@ class ExperimentController(ctk.CTk):
             state = experiment_config.get_single_state(values)
             duration = float(values["STATE_DURATION_S"])
         except (tk.TclError, KeyError, TypeError, ValueError):
-            return self._t("实验条件无效", "Invalid trial condition")
+            return self._t("Invalid trial condition", "Invalid trial condition")
         return self._t(
-            f"单状态实验 · {duration:g}s\n",
-            f"Single-condition trial · {duration:g}s\n",
+            f"Single-condition trial - {duration:g}s\n",
+            f"Single-condition trial - {duration:g}s\n",
         ) + (
             f"{self._state_color_label(state['bg_name'])} / "
             f"{self._state_brightness_label(state['brightness_label'])} "
@@ -558,18 +521,12 @@ class ExperimentController(ctk.CTk):
             self.protocol_summary_var.set(self._protocol_summary_text())
 
     def _state_block_label(self, block):
-        if self.language == "zh":
-            return "无刺激" if block == "no_stimulus" else "有刺激" if block == "stimulus" else str(block)
         return "No stimulus" if block == "no_stimulus" else "Stimulus" if block == "stimulus" else str(block)
 
     def _state_color_label(self, color_name):
-        if self.language == "zh":
-            return {"white": "白光", "green": "绿光", "red": "红光"}.get(str(color_name), str(color_name))
         return {"white": "White", "green": "Green", "red": "Red"}.get(str(color_name), str(color_name))
 
     def _state_brightness_label(self, brightness_name):
-        if self.language == "zh":
-            return {"dark": "弱", "medium": "中", "bright": "强", "custom": "自定义"}.get(str(brightness_name), str(brightness_name))
         return {"dark": "Dark", "medium": "Medium", "bright": "Bright", "custom": "Custom"}.get(str(brightness_name), str(brightness_name))
 
     def _update_run_progress_from_payload(self, payload):
@@ -588,17 +545,17 @@ class ExperimentController(ctk.CTk):
         state_index = int(state.get("index", payload.get("phase", 0)) or 0)
         if state_index:
             progress_text = self._t(
-                f"State {state_index}/1 · {self._format_duration_label(seconds)} / {self._format_duration_label(total_seconds)}",
-                f"State {state_index}/1 · {self._format_duration_label(seconds)} / {self._format_duration_label(total_seconds)}",
+                f"State {state_index}/1 - {self._format_duration_label(seconds)} / {self._format_duration_label(total_seconds)}",
+                f"State {state_index}/1 - {self._format_duration_label(seconds)} / {self._format_duration_label(total_seconds)}",
             )
             detail_text = (
-                f"{self._state_block_label(state.get('block', ''))} · "
+                f"{self._state_block_label(state.get('block', ''))} - "
                 f"{self._state_color_label(state.get('bg_name', ''))} / "
                 f"{self._state_brightness_label(state.get('brightness_label', ''))}"
             )
         else:
-            progress_text = self._t("等待开始", "Waiting to start")
-            detail_text = self._t("空格或鼠标开始实验；开始前为白色背景。", "Press space or click to begin; pre-start background is white.")
+            progress_text = self._t("Waiting to start", "Waiting to start")
+            detail_text = self._t("Press space or click to begin; pre-start background is white.", "Press space or click to begin; pre-start background is white.")
         self.run_progress_label.configure(text=progress_text)
         self.run_state_detail_label.configure(text=detail_text)
 
@@ -606,9 +563,9 @@ class ExperimentController(ctk.CTk):
         if hasattr(self, "run_progress_bar"):
             self.run_progress_bar.set(0)
         if hasattr(self, "run_progress_label"):
-            self.run_progress_label.configure(text=self._t("等待开始", "Waiting to start"))
+            self.run_progress_label.configure(text=self._t("Waiting to start", "Waiting to start"))
         if hasattr(self, "run_state_detail_label"):
-            self.run_state_detail_label.configure(text=self._t("空格或鼠标开始实验；开始前为白色背景。", "Press space or click to begin; pre-start background is white."))
+            self.run_state_detail_label.configure(text=self._t("Press space or click to begin; pre-start background is white.", "Press space or click to begin; pre-start background is white."))
 
     def _fit_aspect_panel(self, event, panel):
         aspect_ratio = 3 / 2
@@ -640,8 +597,8 @@ class ExperimentController(ctk.CTk):
             self.status_values["State"].configure(text=self._state_word("Standby"), text_color=self.colors["text"])
         if "Time" in self.status_values:
             self.status_values["Time"].configure(text="00:00.00", text_color=self.colors["text"])
-        if "FicTrac Δt" in self.status_values:
-            self.status_values["FicTrac Δt"].configure(text="--", text_color=self.colors["text"])
+        if "FicTrac Delta t" in self.status_values:
+            self.status_values["FicTrac Delta t"].configure(text="--", text_color=self.colors["text"])
         if "Speed" in self.status_values:
             self.status_values["Speed"].configure(text="0.00 cm/s", text_color=self.colors["text"])
         if "Angular Vel." in self.status_values:
@@ -721,8 +678,8 @@ class ExperimentController(ctk.CTk):
             self.status_values["State"].configure(text=self._state_word("Standby"), text_color=self.colors["text"])
         if "Time" in self.status_values:
             self.status_values["Time"].configure(text="00:00.00", text_color=self.colors["text"])
-        if "FicTrac Δt" in self.status_values:
-            self.status_values["FicTrac Δt"].configure(text="--", text_color=self.colors["text"])
+        if "FicTrac Delta t" in self.status_values:
+            self.status_values["FicTrac Delta t"].configure(text="--", text_color=self.colors["text"])
         if "Speed" in self.status_values:
             self.status_values["Speed"].configure(text="0.00 cm/s", text_color=self.colors["text"])
         if "Angular Vel." in self.status_values:
@@ -749,8 +706,8 @@ class ExperimentController(ctk.CTk):
         c.create_oval(cx - r * 1.08, cy - r * 1.08, cx + r * 1.08, cy + r * 1.08, outline=pal["grid"], width=1)
         c.create_line(cx - r * 1.18, cy, cx + r * 1.18, cy, fill=pal["grid"], width=1, dash=(4, 4))
         c.create_line(cx, cy - r * 1.18, cx, cy + r * 1.18, fill=pal["grid"], width=1, dash=(4, 4))
-        c.create_text(cx, cy, text=self._t("相机待机", "Camera standby"), fill=pal["muted"], font=("Segoe UI", 12, "bold"))
-        c.create_text(cx, cy + 22, text=self._t("启动跟踪后显示实时数据", "Start Tracking to show live values"), fill=pal["muted"], font=("Segoe UI", 9))
+        c.create_text(cx, cy, text=self._t("Camera standby", "Camera standby"), fill=pal["muted"], font=("Segoe UI", 12, "bold"))
+        c.create_text(cx, cy + 22, text=self._t("Start Tracking to show live values", "Start Tracking to show live values"), fill=pal["muted"], font=("Segoe UI", 9))
 
     def _draw_camera_waiting(self):
         if hasattr(self, "camera_clip_frame"):
@@ -768,8 +725,8 @@ class ExperimentController(ctk.CTk):
         c.create_oval(cx - r * 1.08, cy - r * 1.08, cx + r * 1.08, cy + r * 1.08, outline=pal["grid"], width=1)
         c.create_line(cx - r * 1.18, cy, cx + r * 1.18, cy, fill=pal["grid"], width=1, dash=(4, 4))
         c.create_line(cx, cy - r * 1.18, cx, cy + r * 1.18, fill=pal["grid"], width=1, dash=(4, 4))
-        c.create_text(cx, cy, text=self._t("等待 FicTrac", "Waiting for FicTrac"), fill=pal["warning"], font=("Segoe UI", 12, "bold"))
-        c.create_text(cx, cy + 22, text=self._t("相机画面将显示在这里", "Camera preview will appear here"), fill=pal["muted"], font=("Segoe UI", 9))
+        c.create_text(cx, cy, text=self._t("Waiting for FicTrac", "Waiting for FicTrac"), fill=pal["warning"], font=("Segoe UI", 12, "bold"))
+        c.create_text(cx, cy + 22, text=self._t("Camera preview will appear here", "Camera preview will appear here"), fill=pal["muted"], font=("Segoe UI", 9))
 
     def _draw_track_idle(self):
         if self.real_track_points:
@@ -791,8 +748,8 @@ class ExperimentController(ctk.CTk):
         c.create_oval(cx - arena_r, cy - arena_r, cx + arena_r, cy + arena_r, outline=pal["border"], width=1)
         c.create_line(cx - arena_r * 1.18, cy, cx + arena_r * 1.18, cy, fill=pal["grid"], width=1, dash=(4, 4))
         c.create_line(cx, cy - arena_r * 1.18, cx, cy + arena_r * 1.18, fill=pal["grid"], width=1, dash=(4, 4))
-        c.create_text(cx, cy, text=self._t("轨迹待机", "Trajectory standby"), fill=pal["muted"], font=("Segoe UI", 12, "bold"))
-        c.create_text(cx, cy + 22, text=self._t("等待 live_trajectory.json", "Waiting for live_trajectory.json"), fill=pal["muted"], font=("Segoe UI", 9))
+        c.create_text(cx, cy, text=self._t("Trajectory standby", "Trajectory standby"), fill=pal["muted"], font=("Segoe UI", 12, "bold"))
+        c.create_text(cx, cy + 22, text=self._t("Waiting for live_trajectory.json", "Waiting for live_trajectory.json"), fill=pal["muted"], font=("Segoe UI", 9))
 
     def _poll_live_trajectory(self):
         if self.fictrac_status_socket is not None:
@@ -826,7 +783,7 @@ class ExperimentController(ctk.CTk):
                             f"{self._state_brightness_label(state.get('brightness_label', ''))}"
                         )
                     else:
-                        state_text = f"{self._t('状态', 'State')} {phase}" if phase else self._state_word("Standby")
+                        state_text = f"{self._t('State', 'State')} {phase}" if phase else self._state_word("Standby")
                     self.status_values["State"].configure(text=state_text)
                 self._update_run_progress_from_payload(payload)
                 if "Time" in self.status_values:
@@ -834,13 +791,13 @@ class ExperimentController(ctk.CTk):
                     minutes = int(seconds // 60)
                     rem = seconds - minutes * 60
                     self.status_values["Time"].configure(text=f"{minutes:02d}:{rem:05.2f}")
-                if "FicTrac Δt" in self.status_values:
+                if "FicTrac Delta t" in self.status_values:
                     delta_ms = payload.get("fictrac_delta_ms")
                     try:
                         self.real_track_delta_ms = None if delta_ms is None else float(delta_ms)
                     except (TypeError, ValueError):
                         self.real_track_delta_ms = None
-                    self.status_values["FicTrac Δt"].configure(text="--" if delta_ms is None else f"{float(delta_ms):.2f} ms")
+                    self.status_values["FicTrac Delta t"].configure(text="--" if delta_ms is None else f"{float(delta_ms):.2f} ms")
                 speed = payload.get("speed_cm_s")
                 angular_vel = payload.get("angular_vel_rad_s")
                 if speed is not None:
@@ -913,7 +870,7 @@ class ExperimentController(ctk.CTk):
                 updated = True
 
         if updated and "Tracking" in self.status_values:
-            self.status_values["Tracking"].configure(text=f"● {self._state_word('CAMERA')}", text_color=self.colors["accent"])
+            self.status_values["Tracking"].configure(text=f"* {self._state_word('CAMERA')}", text_color=self.colors["accent"])
 
         self.after(30, self._poll_fictrac_status_udp)
 
@@ -990,16 +947,16 @@ class ExperimentController(ctk.CTk):
         seconds = float(sample["time_s"])
         minutes = int(seconds // 60)
         rem = seconds - minutes * 60
-        # 状态文本未变化时跳过布局和嵌入窗口重绘。
+        # Skip layout and embedded-window redraws when status text is unchanged.
         if "Time" in self.status_values:
             time_text = f"{minutes:02d}:{rem:05.2f}"
             if getattr(self, "_status_text_cache_time", None) != time_text:
                 self.status_values["Time"].configure(text=time_text)
                 self._status_text_cache_time = time_text
-        if "FicTrac Δt" in self.status_values:
+        if "FicTrac Delta t" in self.status_values:
             delta_text = f"{sample['fictrac_delta_ms']:.2f} ms"
             if getattr(self, "_status_text_cache_delta", None) != delta_text:
-                self.status_values["FicTrac Δt"].configure(text=delta_text)
+                self.status_values["FicTrac Delta t"].configure(text=delta_text)
                 self._status_text_cache_delta = delta_text
         display_speed = self._smooth_monitor_value("fictrac_status_smooth_speed", sample["speed_cm_s"])
         display_ang_vel = self._smooth_monitor_value("fictrac_status_smooth_ang_vel", sample["angular_vel_rad_s"])
@@ -1036,8 +993,8 @@ class ExperimentController(ctk.CTk):
             pass
         if "Time" in self.status_values:
             self.status_values["Time"].configure(text="00:00.00")
-        if "FicTrac Δt" in self.status_values:
-            self.status_values["FicTrac Δt"].configure(text="--")
+        if "FicTrac Delta t" in self.status_values:
+            self.status_values["FicTrac Delta t"].configure(text="--")
         if "Speed" in self.status_values:
             self.status_values["Speed"].configure(text="0.00 cm/s")
         if "Angular Vel." in self.status_values:
@@ -1070,7 +1027,7 @@ class ExperimentController(ctk.CTk):
         visible_count = max(40, min(1600, visible_count))
         pts = self.real_track_points[-visible_count:]
 
-        # 使用固定物理比例，仅在轨迹接近边缘时平移视图。
+        # Keep a fixed physical scale and pan only near the view edge.
         origin_x = w * 0.5
         origin_y = h * 0.5
         base_radius_cm = 6.0
@@ -1101,13 +1058,13 @@ class ExperimentController(ctk.CTk):
 
         def to_canvas(point):
             x, y = point
-            # 世界 +X 映射到屏幕上方，世界 +Y 映射到右侧。
+            # Map world +X upward and world +Y to the right.
             return (
                 origin_x + (y - self.track_view_center[1]) * scale,
                 origin_y - (x - self.track_view_center[0]) * scale,
             )
 
-        # 与 main.py 相同的 6 cm 参考半径。
+        # Use the same 6 cm reference radius as main.py.
         arena_r = 6.0 * scale
         arena_cx, arena_cy = to_canvas((0.0, 0.0))
         c.create_oval(arena_cx - arena_r, arena_cy - arena_r, arena_cx + arena_r, arena_cy + arena_r, outline=pal["border"], width=1)
@@ -1127,7 +1084,7 @@ class ExperimentController(ctk.CTk):
         px, py = to_canvas(pts[-1])
         c.create_oval(px - 5, py - 5, px + 5, py + 5, fill=pal["accent"], outline="")
         if self.real_track_heading is not None:
-            # 航向线长度为 1.5 cm，heading=0 指向屏幕上方。
+            # Use a 1.5 cm heading line; heading=0 points upward.
             heading_len = 1.5 * scale
             c.create_line(
                 px,
@@ -1138,9 +1095,9 @@ class ExperimentController(ctk.CTk):
                 width=2,
             )
 
-        status = self._t("实时 VR 轨迹", "LIVE VR trajectory") if self.real_track_active else self._t("上次 VR 轨迹", "LAST VR trajectory")
-        points_label = self._t("点数", "points")
-        window_label = self._t("视窗", "window")
+        status = self._t("LIVE VR trajectory", "LIVE VR trajectory") if self.real_track_active else self._t("LAST VR trajectory", "LAST VR trajectory")
+        points_label = self._t("points", "points")
+        window_label = self._t("window", "window")
         c.create_text(
             14,
             18,
@@ -1161,7 +1118,7 @@ class ExperimentController(ctk.CTk):
             x = 8 + (w - 16) * i / 6
             c.create_line(x, 8, x, h - 10, fill=pal["grid"])
         c.create_line(8, h * 0.52, w - 8, h * 0.52, fill=pal["border"], width=1)
-        c.create_text(w * 0.5, h * 0.5, text=self._t("等待数据", "Waiting for data"), fill=pal["muted"], font=("Segoe UI", 9))
+        c.create_text(w * 0.5, h * 0.5, text=self._t("Waiting for data", "Waiting for data"), fill=pal["muted"], font=("Segoe UI", 9))
 
     def _draw_camera(self):
         pal = self.colors
@@ -1268,7 +1225,7 @@ class ExperimentController(ctk.CTk):
     def _update_demo_text(self):
         seconds = self.demo_t
         self.status_values["Time"].configure(text=f"00:{seconds:05.2f}")
-        self.status_values["FicTrac Δt"].configure(text=f"{5.52 + math.sin(self.demo_t) * 0.07:.2f} ms")
+        self.status_values["FicTrac Delta t"].configure(text=f"{5.52 + math.sin(self.demo_t) * 0.07:.2f} ms")
         self.status_values["Speed"].configure(text=f"{0.78 + math.sin(self.demo_t * 0.8) * 0.2:.2f} cm/s")
         self.status_values["Angular Vel."].configure(text=f"{0.28 + math.cos(self.demo_t * 0.9) * 0.12:.2f} rad/s")
         if self.metric_values:
@@ -1295,11 +1252,11 @@ class ExperimentController(ctk.CTk):
         if hwnd:
             self.fictrac_window_hwnd = hwnd
             self._embed_fictrac_debug_window(hwnd)
-            self.status_values["Tracking"].configure(text=f"● {self._state_word('CAMERA')}", text_color=self.colors["accent"])
+            self.status_values["Tracking"].configure(text=f"* {self._state_word('CAMERA')}", text_color=self.colors["accent"])
             return
 
         self.fictrac_embed_attempts += 1
-        # 最多重试约 7.5 秒，后期适当延长轮询间隔。
+        # Retry for about 7.5 seconds, increasing later polling intervals.
         if self.fictrac_embed_attempts <= 15:
             delay = 400 if self.fictrac_embed_attempts <= 6 else 700
             self.after(delay, self._try_embed_fictrac_window)
@@ -1373,7 +1330,7 @@ class ExperimentController(ctk.CTk):
         crop_size = max(1, min(480, canvas_w, canvas_h))
         x = max(0, (canvas_w - crop_size) // 2)
         y = max(0, (canvas_h - crop_size) // 2)
-        # 几何未变化时跳过布局更新。
+        # Skip layout updates when geometry is unchanged.
         geom = (crop_size, x, y)
         if getattr(self, "_camera_clip_geom", None) == geom and getattr(self, "_camera_clip_placed", False):
             return
@@ -1388,13 +1345,13 @@ class ExperimentController(ctk.CTk):
             return
         try:
             self._position_camera_clip_frame()
-            # 尺寸已设置时避免重复调用跨进程 SetWindowPos。
+            # Avoid repeated cross-process SetWindowPos calls when the size is unchanged.
             if getattr(self, "_embedded_window_size", None) == (480, 480):
                 return
             user32 = ctypes.windll.user32
             swp_noactivate = 0x0010
             swp_nozorder = 0x0004
-            # 保留子窗口尺寸，由父容器裁剪出左上角输入画面。
+            # Keep the child size; the parent clips the upper-left input view.
             user32.SetWindowPos(self.fictrac_window_hwnd, None, 0, 0, 480, 480, swp_noactivate | swp_nozorder)
             self._embedded_window_size = (480, 480)
         except Exception:
@@ -1417,11 +1374,11 @@ class ExperimentController(ctk.CTk):
                              creationflags=subprocess.CREATE_NEW_CONSOLE)
             self._set_event("Calibration launched")
         else:
-            messagebox.showerror("错误", "找不到 configGui.exe！")
+            messagebox.showerror("Error", "Cannot find configGui.exe.")
 
     def start_tracking_only(self):
         if self.fictrac_process is not None and self.fictrac_process.poll() is None:
-            messagebox.showinfo("提示", "相机追踪已经在运行中了！")
+            messagebox.showinfo("Notice", "Camera tracking is already running.")
             self._try_embed_fictrac_window()
             return
         if os.path.exists(self.fictrac_exe):
@@ -1429,14 +1386,14 @@ class ExperimentController(ctk.CTk):
                 experiment_dir = self._prepare_experiment_output_dir()
                 run_config = self._write_fictrac_run_config(experiment_dir)
             except Exception as exc:
-                messagebox.showerror("错误", f"创建实验输出文件夹失败：\n{exc}")
+                messagebox.showerror("Error", f"Could not create the experiment output directory:\n{exc}")
                 return
-            self._reset_session_display(clear_log=True, initial_message=self._t("新跟踪会话已清空。", "New tracking session cleared."), reset_live_file=True)
+            self._reset_session_display(clear_log=True, initial_message=self._t("New tracking session cleared.", "New tracking session cleared."), reset_live_file=True)
             # HIGH_PRIORITY_CLASS
             high_priority_flag = 0x00000080
             self.fictrac_process = subprocess.Popen([self.fictrac_exe, run_config], cwd=experiment_dir,
                                                     creationflags=subprocess.CREATE_NEW_CONSOLE | high_priority_flag)
-            self.status_values["Tracking"].configure(text=f"● {self._state_word('RUNNING')}", text_color=self.colors["accent"])
+            self.status_values["Tracking"].configure(text=f"* {self._state_word('RUNNING')}", text_color=self.colors["accent"])
             self._set_event(f"FicTrac tracking started | {experiment_dir}")
             self.live_demo_enabled = False
             self.demo_t = 0.0
@@ -1449,20 +1406,20 @@ class ExperimentController(ctk.CTk):
             self._embedded_window_size = None
             self.after(1000, self._try_embed_fictrac_window)
         else:
-            messagebox.showerror("错误", f"找不到 {self.fictrac_exe}！请检查 FicTrac 文件夹。")
+            messagebox.showerror("Error", f"Cannot find {self.fictrac_exe}. Check the FicTrac directory.")
 
     def start_vr_experiment(self):
         try:
             self.save_config()
         except Exception:
-            messagebox.showerror("错误", "保存参数失败，请检查格式！")
+            messagebox.showerror("Error", "Could not save parameters. Check their format.")
             return
 
         if not self.tk_vars["SIMULATION_MODE"].get():
             if self.fictrac_process is None or self.fictrac_process.poll() is not None:
                 response = messagebox.askyesno(
-                    "提示",
-                    "未检测到后台有 FicTrac 追踪进程。\n\n确定要继续只开启 VR 画面吗？"
+                    "Notice",
+                    "No running FicTrac process was detected.\n\nContinue with the VR display only?"
                 )
                 if not response:
                     return
@@ -1471,10 +1428,10 @@ class ExperimentController(ctk.CTk):
             try:
                 experiment_dir = self._prepare_experiment_output_dir()
             except Exception as exc:
-                messagebox.showerror("错误", f"创建实验输出文件夹失败：\n{exc}")
+                messagebox.showerror("Error", f"Could not create the experiment output directory:\n{exc}")
                 return
             self._stop_fictrac_status_udp()
-            self._reset_session_display(clear_log=True, initial_message=self._t("新 VR 会话已清空。", "New VR session cleared."), reset_live_file=True)
+            self._reset_session_display(clear_log=True, initial_message=self._t("New VR session cleared.", "New VR session cleared."), reset_live_file=True)
             if self.is_frozen:
                 self.vr_process = subprocess.Popen([self.vr_script], creationflags=subprocess.CREATE_NEW_CONSOLE)
             else:
@@ -1482,7 +1439,7 @@ class ExperimentController(ctk.CTk):
             self.status_values["State"].configure(text=self._state_word("Ready"))
             self._set_event(f"VR session launched | {experiment_dir}")
         else:
-            messagebox.showinfo("提示", "VR 实验已经在运行中了！")
+            messagebox.showinfo("Notice", "The VR experiment is already running.")
 
     def run_plot_trajectory(self):
         try:
@@ -1497,7 +1454,7 @@ class ExperimentController(ctk.CTk):
                 subprocess.Popen([sys.executable, self.plot_traj_script, plot_target], creationflags=subprocess.CREATE_NEW_CONSOLE)
             self._set_event("Trajectory plot opened")
         else:
-            messagebox.showerror("文件缺失", f"未找到：\n{self.plot_traj_script}")
+            messagebox.showerror("Missing file", f"Not found:\n{self.plot_traj_script}")
 
     def run_plot_timeline(self):
         if os.path.exists(self.plot_timeline_script):
@@ -1507,13 +1464,13 @@ class ExperimentController(ctk.CTk):
                 subprocess.Popen([sys.executable, self.plot_timeline_script], creationflags=subprocess.CREATE_NEW_CONSOLE)
             self._set_event("Timeline plot opened")
         else:
-            messagebox.showerror("文件缺失", f"未找到：\n{self.plot_timeline_script}")
+            messagebox.showerror("Missing file", f"Not found:\n{self.plot_timeline_script}")
 
     def run_plot_polar(self):
         try:
             self.save_config()
         except Exception as e:
-            print(f"保存画图颜色配置失败: {e}")
+            print(f"Could not save plot color settings: {e}")
         if os.path.exists(self.plot_polar_script):
             if self.is_frozen:
                 subprocess.Popen([self.plot_polar_script], creationflags=subprocess.CREATE_NEW_CONSOLE)
@@ -1521,7 +1478,7 @@ class ExperimentController(ctk.CTk):
                 subprocess.Popen([sys.executable, self.plot_polar_script], creationflags=subprocess.CREATE_NEW_CONSOLE)
             self._set_event("Polar preference plot opened")
         else:
-            messagebox.showerror("文件缺失", f"未找到：\n{self.plot_polar_script}")
+            messagebox.showerror("Missing file", f"Not found:\n{self.plot_polar_script}")
 
     def stop_all(self):
         self._stop_fictrac_status_udp()
@@ -1540,6 +1497,6 @@ class ExperimentController(ctk.CTk):
         self.fictrac_run_config_txt = None
         self._refresh_suggested_fly_id()
         self._reset_session_display(clear_log=True, initial_message=None, reset_live_file=False)
-        self.status_values["Tracking"].configure(text=f"● {self._state_word('STOPPED')}", text_color=self.colors["danger"])
+        self.status_values["Tracking"].configure(text=f"* {self._state_word('STOPPED')}", text_color=self.colors["danger"])
         self._set_event("All processes terminated")
         self.after(50, self._draw_idle_panels)

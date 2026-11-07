@@ -2,7 +2,7 @@ import math
 import json
 import os
 
-# 文件路径
+# File paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 config_path = os.path.join(BASE_DIR, "settings.json")
 if os.path.exists(config_path):
@@ -11,12 +11,12 @@ if os.path.exists(config_path):
 else:
     _cfg = {}
 
-# 数据保存目录
+# Data output directory
 SAVE_DIR = _cfg.get("SAVE_DIR", os.path.join(BASE_DIR, "exp_data"))
 if not os.path.isabs(SAVE_DIR):
     SAVE_DIR = os.path.join(BASE_DIR, SAVE_DIR)
 
-# 网络与硬件
+# Network and hardware
 UDP_IP = _cfg.get("UDP_IP", "127.0.0.1")
 UDP_PORT = int(_cfg.get("UDP_PORT", 2000))
 
@@ -24,7 +24,7 @@ SCREEN_FOV_DEG = float(_cfg.get("SCREEN_FOV_DEG", 270.0))
 SCREEN_FOV_RAD = math.radians(SCREEN_FOV_DEG)
 SPHERE_RADIUS_CM = float(_cfg.get("SPHERE_RADIUS_CM", 0.6))
 
-# 实验与视觉参数
+# Experiment and visual parameters
 SIMULATION_MODE = _cfg.get("SIMULATION_MODE", False)
 
 INVERT_ROTATION = bool(_cfg.get("INVERT_ROTATION", False))
@@ -32,7 +32,7 @@ INVERT_FORWARD = bool(_cfg.get("INVERT_FORWARD", False))
 
 DEFAULT_BRIGHTNESS = float(_cfg.get("DEFAULT_BRIGHTNESS", 0.41))
 
-# 条纹参数
+# Stripe parameters
 V_BAR_COUNT = int(_cfg.get("V_BAR_COUNT", 2))
 V_BAR_SPACING_DEG = 360.0 / max(V_BAR_COUNT, 1)
 
@@ -45,19 +45,19 @@ BAR_HALF_WIDTH_CM = VIRTUAL_WALL_DISTANCE_CM * math.sin(math.radians(BAR_VISUAL_
 
 SMOOTHING_FACTOR = float(_cfg.get("SMOOTHING_FACTOR", 0.5))
 
-# 旧版阶段时长，仅用于兼容已有分析。
+# Legacy phase durations retained for existing analysis.
 PHASE_1_DURATION = float(_cfg.get("PHASE_1_DURATION", 5.0))
 PHASE_2_DURATION = float(_cfg.get("PHASE_2_DURATION", 60.0))
 PHASE_3_DURATION = float(_cfg.get("PHASE_3_DURATION", 5.0))
 
-# 活动判定阈值
+# Movement thresholds
 MOVEMENT_SPEED_THRESHOLD = float(_cfg.get("MOVEMENT_SPEED_THRESHOLD", 0.05))
 MOVEMENT_ANG_VEL_THRESHOLD = float(_cfg.get("MOVEMENT_ANG_VEL_THRESHOLD", 0.05))
 
 BLACK = (0, 0, 0)
 
 
-# 颜色配置
+# Color configuration
 def parse_color(color_str, default=(0, 0, 0)):
     try:
         return tuple(map(int, str(color_str).split(',')))
@@ -94,7 +94,7 @@ def parse_named_float_options(options):
 
 BG_COLOR_STR = str(_cfg.get("BG_COLOR", "0,255,0"))
 BAR_COLOR_STR = str(_cfg.get("BAR_COLOR", "0,0,0"))
-# 默认使用绿色背景和黑色条纹。
+# Default to a green background and black stripes.
 BG_COLOR = parse_color(BG_COLOR_STR, (0, 255, 0))
 BAR_COLOR = parse_color(BAR_COLOR_STR, (0, 0, 0))
 
@@ -144,7 +144,7 @@ STATE_COLOR_BRIGHTNESS_MATRIX = [
     {"bg_name": "red", "bg_color": STATE_RED_COLOR, "bg_color_str": STATE_RED_COLOR_STR, "brightness_label": "bright", "brightness": STATE_RED_BRIGHT_BRIGHTNESS},
 ]
 
-# 兼容旧版 settings.json 中的两列表达方式。
+# Support the paired option lists in legacy settings.json files.
 STATE_BG_OPTIONS_STR = str(_cfg.get(
     "STATE_BG_OPTIONS",
     "white:255,255,255;green:0,255,0;red:255,0,0"

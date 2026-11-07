@@ -34,16 +34,16 @@ CVSource::CVSource(std::string input)
         if (input.size() > 5) { throw std::exception(); }
         int id = std::stoi(input);
         
-        // 1. 换回能成功识别你相机的 DSHOW
+        // Use the DirectShow backend for this camera.
         _cap = std::shared_ptr<cv::VideoCapture>(new cv::VideoCapture(id, cv::CAP_DSHOW));
         if (!_cap->isOpened()) { throw 0; }
 
         // ========================================================
-        // 【自研外挂：退回 DSHOW，并大幅降低分辨率以释放 USB 带宽】
+        // Request MJPG capture at the configured resolution to reduce USB bandwidth.
         // ========================================================
         _cap->set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-        _cap->set(cv::CAP_PROP_FRAME_WIDTH, 480);  // 降到 320
-        _cap->set(cv::CAP_PROP_FRAME_HEIGHT, 360); // 降到 240
+        _cap->set(cv::CAP_PROP_FRAME_WIDTH, 480);  // Requested capture width.
+        _cap->set(cv::CAP_PROP_FRAME_HEIGHT, 360); // Requested capture height.
         _cap->set(cv::CAP_PROP_FPS, 180);
         // ========================================================
 

@@ -9,7 +9,7 @@ import pandas as pd
 from matplotlib.patches import Patch
 from output_naming import resolve_input_path
 
-plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei"]
+plt.rcParams["font.sans-serif"] = ["DejaVu Sans", "Arial"]
 plt.rcParams["axes.unicode_minus"] = False
 
 
@@ -24,14 +24,14 @@ def select_file():
     root = tk.Tk()
     root.withdraw()
     file_path = filedialog.askopenfilename(
-        title="请选择果蝇实验数据 CSV 文件",
+        title="Select a Drosophila experiment CSV file",
         filetypes=[("CSV Files", "*.csv")],
     )
     return file_path
 
 
 def load_clean_data(file_path):
-    print(f"正在读取文件: {file_path} ...")
+    print(f"Reading file: {file_path} ...")
     data_end_index = 0
     with open(file_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
@@ -46,7 +46,7 @@ def load_clean_data(file_path):
     try:
         return pd.read_csv(file_path, nrows=data_end_index - 1)
     except Exception as e:
-        print(f"读取数据时发生错误: {e}")
+        print(f"Could not read data: {e}")
         return None
 
 
@@ -142,7 +142,7 @@ def plot_behavior_timeline(df, file_path):
     ]
     missing = [col for col in required_cols if col not in df.columns]
     if missing:
-        print(f"⚠️ 缺少行为时间图所需列: {missing}")
+        print(f"[WARNING] Missing columns required for the behavior timeline: {missing}")
         return
 
     work_df = df.copy()
@@ -152,7 +152,7 @@ def plot_behavior_timeline(df, file_path):
     work_df["AbsAngVel"] = _smooth_series(pd.to_numeric(work_df["Exp_AngVel_rad_s"], errors="coerce").abs(), window=15)
     work_df = work_df.dropna(subset=["Time_s", "State_Index"])
     if work_df.empty:
-        print("⚠️ 没有可绘制的时间序列数据。")
+        print("[WARNING] No time-series data to plot.")
         return
 
     segments = _state_segments(work_df)
@@ -243,7 +243,7 @@ def plot_behavior_timeline(df, file_path):
     ax_speed.legend(handles=legend_handles, loc="upper right", fontsize=8, frameon=False, ncol=2)
 
     fig.savefig(save_path, dpi=300, bbox_inches="tight")
-    print(f"行为时间图已导出至: {save_path}")
+    print(f"Behavior timeline exported to: {save_path}")
     plt.close(fig)
 
 
@@ -254,7 +254,7 @@ def LineOrPatch(color, label):
 if __name__ == "__main__":
     csv_path = resolve_input_path(sys.argv[1]) if len(sys.argv) > 1 else select_file()
     if not csv_path or not os.path.exists(csv_path):
-        print("未选择文件，程序退出。")
+        print("No file selected. Exiting.")
         sys.exit()
 
     fly_data = load_clean_data(csv_path)

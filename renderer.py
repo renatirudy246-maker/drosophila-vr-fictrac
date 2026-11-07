@@ -14,10 +14,10 @@ class VRRenderer:
         try:
             self.screen = pygame.display.set_mode((0, 0), DISPLAY_FLAGS, display=1)
         except pygame.error:
-            print("未检测到副屏，退回主屏幕显示...")
+            print("No secondary monitor detected; using the primary display...")
             self.screen = pygame.display.set_mode((0, 0), DISPLAY_FLAGS, display=0)
 
-        pygame.display.set_caption("VR 系统")
+        pygame.display.set_caption("VR System")
         self.clock = pygame.time.Clock()
 
     def tick(self, fps=60):
@@ -28,7 +28,7 @@ class VRRenderer:
                    h_bar_count=0, h_bar_spacing_cm=6.0, virtual_wall_dist_cm=10.0,
                    bg_color=(0, 255, 0), bar_color=(0, 0, 0), stimulus_on=None):
 
-        """渲染背景以及横、竖条纹刺激。"""
+        """Render the background and horizontal/vertical stripe stimuli."""
         current_window_width, current_window_height = self.screen.get_size()
         center_x_px = current_window_width / 2
         center_y_px = current_window_height / 2
@@ -41,7 +41,7 @@ class VRRenderer:
         should_draw_stimulus = (current_phase == 2) if stimulus_on is None else bool(stimulus_on)
         if experiment_started and smoothed_heading is not None and should_draw_stimulus:
 
-            # 竖向条纹
+            # Vertical stripes
             for bx, by in v_bar_world_coords:
                 dx = bx - fly_x
                 dy = by - fly_y
@@ -50,12 +50,12 @@ class VRRenderer:
                 alpha = math.atan2(dy, dx)
                 theta_rel = alpha - smoothed_heading
 
-                # 将相对角度归一化到 [-pi, pi)。
+                # Normalize relative angles to [-pi, pi).
                 theta_rel = (theta_rel + math.pi) % (2 * math.pi) - math.pi
                 safe_ratio = min(1.0, bar_half_width_cm / dist)
                 w_ang = 2 * math.asin(safe_ratio)
 
-                # 限制竖条纹的视觉角宽。
+                # Clamp the visual angle of vertical stripes.
                 min_visual_angle_rad = math.radians(21.92)
                 max_visual_angle_rad = math.radians(46.99)
                 w_ang = max(min_visual_angle_rad, min(max_visual_angle_rad, w_ang))
@@ -63,7 +63,7 @@ class VRRenderer:
                 angle_left_edge = theta_rel + (w_ang / 2)
                 angle_right_edge = theta_rel - (w_ang / 2)
 
-                # 跳过视场外的条纹。
+                # Skip stripes outside the field of view.
                 if angle_right_edge > self.fov_rad / 2 or angle_left_edge < -self.fov_rad / 2:
                     continue
 
@@ -79,32 +79,32 @@ class VRRenderer:
                     pygame.draw.rect(self.screen, bar_color, v_bar_rect)
 
             if h_bar_count > 0:
-                v_fov_rad = math.radians(120.0)  # 垂直视场角
+                v_fov_rad = math.radians(120.0)  # Vertical field of view
 
-                # 横条纹的视觉角宽范围。
+                # Visual-angle bounds for horizontal stripes.
                 min_visual_angle_rad = math.radians(10)
                 max_visual_angle_rad = math.radians(90)
 
                 for i in range(h_bar_count):
                     offset_idx = i - (h_bar_count - 1) / 2.0
 
-                    # 横条纹在虚拟墙上的高度范围。
+                    # Height bounds of the horizontal stripe on the virtual wall.
                     physical_y_center = offset_idx * h_bar_spacing_cm
                     top_y_physical = physical_y_center + bar_half_width_cm
                     bottom_y_physical = physical_y_center - bar_half_width_cm
 
-                    # 将高度范围投影为垂直视角。
+                    # Project height bounds to vertical viewing angles.
                     top_rad = math.atan2(top_y_physical, virtual_wall_dist_cm)
                     bottom_rad = math.atan2(bottom_y_physical, virtual_wall_dist_cm)
 
-                    # 限制角宽并保持条纹中心不变。
+                    # Clamp angular width while retaining the stripe center.
                     current_w_ang = top_rad - bottom_rad
                     center_rad = (top_rad + bottom_rad) / 2.0
                     clamped_w_ang = max(min_visual_angle_rad, min(max_visual_angle_rad, current_w_ang))
                     top_rad = center_rad + (clamped_w_ang / 2.0)
                     bottom_rad = center_rad - (clamped_w_ang / 2.0)
 
-                    # 屏幕 y 轴向下为正。
+                    # Screen y increases downward.
                     top_px = center_y_px - int((top_rad / v_fov_rad) * current_window_height)
                     bottom_px = center_y_px - int((bottom_rad / v_fov_rad) * current_window_height)
 

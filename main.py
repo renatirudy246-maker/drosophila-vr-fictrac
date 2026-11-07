@@ -215,7 +215,7 @@ def main():
         stimulus_initialized = True
         print(
             "Stimulus anchored at trial start "
-            f"(t={anchor['time']:.4f}s, heading={anchor['heading']:.4f} rad)。"
+            f"(t={anchor['time']:.4f}s, heading={anchor['heading']:.4f} rad)."
         )
         return True
 
@@ -233,8 +233,8 @@ def main():
 
     clear_fictrac_debug_recording_flags()
 
-    print(f"\n--- 虚拟现实系统就绪 (已启用高频全量记录) ---")
-    print("【快捷键】：空格(开始) | ↑↓(调亮度) | F11(全屏) | ESC(退出)")
+    print(f"\n--- VR system ready (full-rate sample logging enabled) ---")
+    print("Keys: Space (start) | Up/Down (brightness) | F11 (fullscreen) | Esc (exit)")
 
     while running:
         renderer.tick(60)
@@ -287,7 +287,7 @@ def main():
                             "points": [],
                             "latest": {"x": 0.0, "y": 0.0, "heading": None},
                         }, sync=True)
-                        print("\n▶ 实验开始！")
+                        print("\n[START] Experiment started.")
                 elif event.key == pygame.K_UP:
                     current_brightness = min(1.0, current_brightness + 0.1)
                 elif event.key == pygame.K_DOWN:
@@ -332,7 +332,7 @@ def main():
                         "points": [],
                         "latest": {"x": 0.0, "y": 0.0, "heading": None},
                     }, sync=True)
-                    print("\n▶ 实验开始！")
+                    print("\n[START] Experiment started.")
 
         if experiment_started:
             elapsed_time = experiment_time_s
@@ -373,7 +373,7 @@ def main():
                         fictrac_seq = int(float(values[col(23)]))
                         fictrac_delta_ms = float(values[col(24)])
 
-                        # FicTrac 输出列 20、21、17 分别为前进、侧移和航向。
+                        # FicTrac columns 20, 21 and 17 are forward motion, lateral motion and heading.
                         raw_fly_forward = ft_forward_cm
                         raw_fly_lateral = -ft_lateral_cm
                         current_raw_heading = -ft_heading_rad
@@ -416,7 +416,7 @@ def main():
                         if fictrac_delta_ms is not None and fictrac_delta_ms > 0:
                             dt = fictrac_delta_ms / 1000.0
                             if dt > 0.5 and perf_dt is not None and perf_dt > 0:
-                                print(f"[警告] FicTrac Δt 异常: {fictrac_delta_ms:.3f} ms，改用本机计时 {perf_dt:.4f} s")
+                                print(f"[WARNING] Invalid FicTrac Delta t: {fictrac_delta_ms:.3f} ms; using local elapsed time {perf_dt:.4f} s")
                                 dt = perf_dt
                         elif perf_dt is not None:
                             dt = perf_dt
@@ -466,7 +466,7 @@ def main():
 
                             next_vr_x = vr_fly_x + vr_dx * FORWARD_GAIN
                             next_vr_y = vr_fly_y + vr_dy * FORWARD_GAIN
-                            # 刺激开始后继续累计开放世界坐标。
+                            # Continue integrating open-world coordinates after stimulus onset.
                             vr_fly_x = next_vr_x
                             vr_fly_y = next_vr_y
 

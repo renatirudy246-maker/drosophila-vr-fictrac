@@ -215,12 +215,11 @@ class ExperimentLauncher(controller.ExperimentController):
         top.grid_propagate(False)
         top.grid_rowconfigure(0, weight=1)
         top.grid_columnconfigure(0, weight=1)
-        self._label(top, "果蝇视觉实验控制台", "Drosophila VR Experiment Console",
+        self._label(top, "Drosophila VR Experiment Console", "Drosophila VR Experiment Console",
                     font=self.fonts["title"]).grid(row=0, column=0, sticky="w", padx=self._px(14))
-        self.theme_toggle_button = self._button(top, "切换主题", "Theme", self.toggle_theme_mode)
+        self.theme_toggle_button = self._button(top, "Theme", "Theme", self.toggle_theme_mode)
         self.theme_toggle_button.grid(row=0, column=1, padx=4)
-        self.lang_toggle_button = ttk.Button(top, command=self.toggle_language, width=6, style="VR.TButton")
-        self.lang_toggle_button.grid(row=0, column=2, padx=(4, self._px(12)))
+        self.theme_toggle_button.grid_configure(padx=(4, self._px(12)))
 
     def _new_sidebar(self, parent, column, zh, en, width):
         panel = self._frame(parent, width=self._px(width))
@@ -232,20 +231,20 @@ class ExperimentLauncher(controller.ExperimentController):
         return panel
 
     def _create_native_parameters(self, parent):
-        panel = self._new_sidebar(parent, 0, "实验设置", "Experiment Setup", 330)
+        panel = self._new_sidebar(parent, 0, "Experiment Setup", "Experiment Setup", 330)
         panel.grid_rowconfigure(2, weight=1)
         path = self._frame(panel)
         path.grid(row=1, column=0, sticky="ew", padx=self._px(10), pady=(0, 6))
         path.grid_columnconfigure(0, weight=1)
-        self._label(path, "导出路径", "Export Path", muted=True).grid(row=0, column=0, sticky="w")
+        self._label(path, "Export Path", "Export Path", muted=True).grid(row=0, column=0, sticky="w")
         ttk.Entry(path, textvariable=self.tk_vars["OUTPUT_ROOT_DIR"], width=1,
                   font=self.fonts["body"], style="VR.TEntry").grid(
             row=1, column=0, sticky="ew", padx=(0, 6))
-        self._button(path, "浏览", "Browse", self.browse_save_dir).grid(row=1, column=1)
+        self._button(path, "Browse", "Browse", self.browse_save_dir).grid(row=1, column=1)
 
         self.settings_tabs = ttk.Notebook(panel, style="VR.TNotebook")
         self.settings_tabs.grid(row=2, column=0, sticky="nsew", padx=6, pady=4)
-        self.settings_tab_names = (self._t("实验", "Trial"), self._t("高级", "Advanced"))
+        self.settings_tab_names = (self._t("Trial", "Trial"), self._t("Advanced", "Advanced"))
         for name in self.settings_tab_names:
             viewport = ParameterViewport(self.settings_tabs, self.colors["panel"])
             self.settings_tabs.add(viewport, text=name)
@@ -256,37 +255,37 @@ class ExperimentLauncher(controller.ExperimentController):
             viewport.content.next_row = 0
         self.param_groups_frame, self.advanced_params_frame = [v.content for v in self._viewports]
         basic, advanced = self.param_groups_frame, self.advanced_params_frame
-        self._parameter_section(basic, "单次实验条件", "Trial Condition", (
-            ("SINGLE_BG_NAME", "背景", "Background"),
-            ("STATE_DURATION_S", "时长 (s)", "Duration (s)"),
-            ("SINGLE_BRIGHTNESS", "亮度 (0-1)", "Brightness (0-1)"),
-            ("SINGLE_STIMULUS_ON", "视觉条纹", "Visual stripes"),
-            ("BAR_VISUAL_ANGLE_DEG", "条纹宽度 (deg)", "Stripe width (deg)"),
-            ("V_BAR_COUNT", "条纹数量", "Stripe count"),
+        self._parameter_section(basic, "Trial Condition", "Trial Condition", (
+            ("SINGLE_BG_NAME", "Background", "Background"),
+            ("STATE_DURATION_S", "Duration (s)", "Duration (s)"),
+            ("SINGLE_BRIGHTNESS", "Brightness (0-1)", "Brightness (0-1)"),
+            ("SINGLE_STIMULUS_ON", "Visual stripes", "Visual stripes"),
+            ("BAR_VISUAL_ANGLE_DEG", "Stripe width (deg)", "Stripe width (deg)"),
+            ("V_BAR_COUNT", "Stripe count", "Stripe count"),
         ))
-        self._parameter_section(basic, "样本信息", "Sample Info", (
-            ("WING_CONDITION", "翅膀状态", "Wings"),
-            ("FLY_ID", "果蝇编号", "Fly ID"),
-            ("EXPERIMENT_ID", "实验编号", "Trial ID"),
+        self._parameter_section(basic, "Sample Info", "Sample Info", (
+            ("WING_CONDITION", "Wings", "Wings"),
+            ("FLY_ID", "Fly ID", "Fly ID"),
+            ("EXPERIMENT_ID", "Trial ID", "Trial ID"),
         ))
-        self._parameter_section(advanced, "采集设置", "Acquisition", (
-            ("UDP_PORT", "FicTrac 端口", "FicTrac port"),
-            ("SIMULATION_MODE", "仿真模式", "Simulation mode"),
+        self._parameter_section(advanced, "Acquisition", "Acquisition", (
+            ("UDP_PORT", "FicTrac port", "FicTrac port"),
+            ("SIMULATION_MODE", "Simulation mode", "Simulation mode"),
         ))
-        self._parameter_section(advanced, "开始前画面", "Pre-start Display", (
-            ("PRE_START_BG_COLOR", "开始前背景", "Pre-start background"),
-            ("PRE_START_BRIGHTNESS", "开始前亮度", "Pre-start brightness"),
+        self._parameter_section(advanced, "Pre-start Display", "Pre-start Display", (
+            ("PRE_START_BG_COLOR", "Pre-start background", "Pre-start background"),
+            ("PRE_START_BRIGHTNESS", "Pre-start brightness", "Pre-start brightness"),
         ))
-        self._parameter_section(advanced, "视觉刺激", "Visual Stimulus", (
-            ("BAR_COLOR", "条纹颜色", "Bar color"),
+        self._parameter_section(advanced, "Visual Stimulus", "Visual Stimulus", (
+            ("BAR_COLOR", "Bar color", "Bar color"),
         ))
-        self._parameter_section(advanced, "空间标定", "Arena Geometry", (
-            ("SCREEN_FOV_DEG", "屏幕 FOV (deg)", "Screen FOV (deg)"),
-            ("VIRTUAL_WALL_DISTANCE_CM", "虚拟墙距离 (cm)", "Virtual wall (cm)"),
-            ("SPHERE_RADIUS_CM", "小球半径 (cm)", "Sphere radius (cm)"),
-            ("MONITOR_SMOOTHING_FACTOR", "监测平滑 (0-1)", "Monitor smoothing (0-1)"),
+        self._parameter_section(advanced, "Arena Geometry", "Arena Geometry", (
+            ("SCREEN_FOV_DEG", "Screen FOV (deg)", "Screen FOV (deg)"),
+            ("VIRTUAL_WALL_DISTANCE_CM", "Virtual wall (cm)", "Virtual wall (cm)"),
+            ("SPHERE_RADIUS_CM", "Sphere radius (cm)", "Sphere radius (cm)"),
+            ("MONITOR_SMOOTHING_FACTOR", "Monitor smoothing (0-1)", "Monitor smoothing (0-1)"),
         ))
-        self._button(panel, "保存配置", "Save Config", self.save_config_with_prompt,
+        self._button(panel, "Save Config", "Save Config", self.save_config_with_prompt,
                      "Primary.VR.TButton").grid(row=3, column=0, sticky="e", padx=10, pady=8)
 
     def _parameter_section(self, parent, zh, en, parameters):
@@ -303,8 +302,8 @@ class ExperimentLauncher(controller.ExperimentController):
                                        values=("white", "green", "red"), width=12,
                                        font=self.fonts["mono"], style="VR.TCombobox")
             elif key in ("SINGLE_STIMULUS_ON", "SIMULATION_MODE", "WING_CONDITION"):
-                choices = (("wing", "有翅", "Winged"), ("no_wing", "无翅", "Wingless")) \
-                    if key == "WING_CONDITION" else ((True, "开启", "On"), (False, "关闭", "Off"))
+                choices = (("wing", "Winged", "Winged"), ("no_wing", "Wingless", "Wingless")) \
+                    if key == "WING_CONDITION" else ((True, "On", "On"), (False, "Off", "Off"))
                 control = StateSelector(parent, variable, choices, self._t, width=12,
                                         font=self.fonts["mono"], style="VR.TCombobox")
             elif key == "SINGLE_BRIGHTNESS":
@@ -362,7 +361,7 @@ class ExperimentLauncher(controller.ExperimentController):
             widget = widget.master
 
     def _create_native_status(self, parent):
-        panel = self._new_sidebar(parent, 1, "运行状态", "Session Status", 270)
+        panel = self._new_sidebar(parent, 1, "Session Status", "Session Status", 270)
         panel.grid_rowconfigure(6, weight=1)
         self.clock_label = self._label(panel, font=self.fonts["clock"])
         self.clock_label.grid(row=1, column=0, sticky="ew", padx=12, pady=(0, 8))
@@ -370,12 +369,12 @@ class ExperimentLauncher(controller.ExperimentController):
         metrics.grid(row=2, column=0, sticky="ew", padx=12)
         metrics.grid_columnconfigure(1, weight=1)
         for row, (zh, en, value) in enumerate((
-            ("跟踪", "Tracking", self._state_word("IDLE")),
-            ("状态", "State", self._state_word("Standby")),
+            ("Tracking", "Tracking", self._state_word("IDLE")),
+            ("State", "State", self._state_word("Standby")),
             ("Time", "Time", "00:00.00"),
-            ("FicTrac Δt", "FicTrac Δt", "--"),
-            ("速度", "Speed", "0.00 cm/s"),
-            ("角速度", "Angular Vel.", "0.00 rad/s"),
+            ("FicTrac Delta t", "FicTrac Delta t", "--"),
+            ("Speed", "Speed", "0.00 cm/s"),
+            ("Angular Vel.", "Angular Vel.", "0.00 rad/s"),
         )):
             self._label(metrics, zh, en, muted=True).grid(row=row, column=0, sticky="nw", pady=5, padx=(0, 8))
             label = self._label(metrics, value, font=self.fonts["mono"], width=1,
@@ -386,7 +385,7 @@ class ExperimentLauncher(controller.ExperimentController):
         progress = self._frame(panel)
         progress.grid(row=3, column=0, sticky="ew", padx=12, pady=10)
         progress.grid_columnconfigure(0, weight=1)
-        self._label(progress, "实验进度", "Run Progress", font=self.fonts["panel"]).grid(row=0, column=0, sticky="w")
+        self._label(progress, "Run Progress", "Run Progress", font=self.fonts["panel"]).grid(row=0, column=0, sticky="w")
         self.run_progress_bar = ProgressBar(progress, maximum=1, style="VR.Horizontal.TProgressbar")
         self.run_progress_bar.grid(row=1, column=0, sticky="ew", pady=6)
         self.run_progress_label = self._label(progress, width=1)
@@ -394,7 +393,7 @@ class ExperimentLauncher(controller.ExperimentController):
         self.run_state_detail_label = self._label(progress, muted=True, wraplength=self._px(235),
                                                  width=1, height=2, justify="left")
         self.run_state_detail_label.grid(row=3, column=0, sticky="ew", pady=(4, 0))
-        self._label(panel, "实验记录", "Run Notes", font=self.fonts["panel"]).grid(
+        self._label(panel, "Run Notes", "Run Notes", font=self.fonts["panel"]).grid(
             row=5, column=0, sticky="w", padx=12, pady=(0, 4))
         log = self._frame(panel)
         log.grid(row=6, column=0, sticky="nsew", padx=10, pady=(0, 10))
@@ -413,8 +412,8 @@ class ExperimentLauncher(controller.ExperimentController):
         workspace.grid(row=0, column=2, sticky="nsew")
         workspace.grid_columnconfigure(0, weight=1)
         for row, name, zh, en, detail_zh, detail_en in (
-            (0, "camera", "相机 / 球跟踪", "Camera / Ball Tracking", "ROI 叠加", "ROI overlay"),
-            (1, "track", "VR 轨迹", "Virtual Trajectory", "虚拟世界坐标", "VR world coordinates"),
+            (0, "camera", "Camera / Ball Tracking", "Camera / Ball Tracking", "ROI overlay", "ROI overlay"),
+            (1, "track", "Virtual Trajectory", "Virtual Trajectory", "VR world coordinates", "VR world coordinates"),
         ):
             workspace.grid_rowconfigure(row, weight=1, uniform="preview")
             slot = self._frame(workspace, "bg")
@@ -456,13 +455,13 @@ class ExperimentLauncher(controller.ExperimentController):
         actions = self._frame(bottom, "top")
         actions.grid(row=0, column=1, sticky="e", padx=8)
         for column, (name, zh, en, command, style) in enumerate((
-            ("calibrate", "校准", "Calibration", self.open_config_gui, "VR.TButton"),
-            ("tracking", "启动跟踪", "Start Tracking", self.start_tracking_only, "Primary.VR.TButton"),
-            ("vr", "启动 VR", "Launch VR", self.start_vr_experiment, "Accent.VR.TButton"),
-            ("trajectory", "轨迹图", "Plot Trajectory", self.run_plot_trajectory, "VR.TButton"),
-            ("timeline", "时间图", "Plot Timeline", self.run_plot_timeline, "VR.TButton"),
-            ("polar", "极坐标", "Polar Preference", self.run_plot_polar, "VR.TButton"),
-            ("stop", "停止全部", "Stop All", self.stop_all, "Danger.VR.TButton"),
+            ("calibrate", "Calibration", "Calibration", self.open_config_gui, "VR.TButton"),
+            ("tracking", "Start Tracking", "Start Tracking", self.start_tracking_only, "Primary.VR.TButton"),
+            ("vr", "Launch VR", "Launch VR", self.start_vr_experiment, "Accent.VR.TButton"),
+            ("trajectory", "Plot Trajectory", "Plot Trajectory", self.run_plot_trajectory, "VR.TButton"),
+            ("timeline", "Plot Timeline", "Plot Timeline", self.run_plot_timeline, "VR.TButton"),
+            ("polar", "Polar Preference", "Polar Preference", self.run_plot_polar, "VR.TButton"),
+            ("stop", "Stop All", "Stop All", self.stop_all, "Danger.VR.TButton"),
         )):
             button = self._button(actions, zh, en, command, style)
             button.grid(row=0, column=column, padx=3)
@@ -513,15 +512,15 @@ class ExperimentLauncher(controller.ExperimentController):
         self._redraw_theme_sensitive_views()
 
     def _apply_language(self):
-        title = self._t("果蝇视觉实验控制台", "Drosophila VR Experiment Console")
+        self.language = "en"
+        title = self._t("Drosophila VR Experiment Console", "Drosophila VR Experiment Console")
         self.title(title)
         for widget, zh, en, attribute in self.localized_widgets:
             widget.configure(**{attribute: self._t(zh, en)})
         for info in self.param_widgets.values():
             if isinstance(info["control"], StateSelector):
                 info["control"].refresh()
-        self.lang_toggle_button.configure(text="EN" if self.language == "zh" else "中文")
-        self.settings_tab_names = (self._t("实验", "Trial"), self._t("高级", "Advanced"))
+        self.settings_tab_names = (self._t("Trial", "Trial"), self._t("Advanced", "Advanced"))
         for index, name in enumerate(self.settings_tab_names):
             self.settings_tabs.tab(index, text=name)
         for label in self.status_values.values():
@@ -531,7 +530,7 @@ class ExperimentLauncher(controller.ExperimentController):
 
     def _open_color_picker(self, key, button_widget):
         color = controller.askcolor(color=self._rgb_to_hex(self.tk_vars[key].get()), parent=self,
-                                title=self._t("选择颜色", "Select Color"))[0]
+                                title=self._t("Select Color", "Select Color"))[0]
         if color:
             r, g, b = [int(value) for value in color]
             self.tk_vars[key].set(f"{r},{g},{b}")

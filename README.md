@@ -10,7 +10,7 @@ Use 64-bit Windows 10/11 and Python 3.9-3.11 with a compatible camera and displa
 
 ### Complete Windows Package
 
-Download [drosophila-vr-fictrac-windows-v1.1.1.zip](https://github.com/renatirudy246-maker/drosophila-vr-fictrac/releases/download/v1.1.1/drosophila-vr-fictrac-windows-v1.1.1.zip) from the [v1.1.1 Release](https://github.com/renatirudy246-maker/drosophila-vr-fictrac/releases/tag/v1.1.1). Extract the entire archive, keeping its folder structure. It includes the Python program and the `fictrac/` runtime folder with `fictrac.exe`, `configGui.exe`, OpenCV/NLopt DLLs, configuration and calibration images. No separate FicTrac download or build is needed for this package.
+Download [drosophila-vr-fictrac-windows-v1.1.2.zip](https://github.com/renatirudy246-maker/drosophila-vr-fictrac/releases/download/v1.1.2/drosophila-vr-fictrac-windows-v1.1.2.zip) from the [v1.1.2 Release](https://github.com/renatirudy246-maker/drosophila-vr-fictrac/releases/tag/v1.1.2). Extract the entire archive, keeping its folder structure. It includes the Python program and the `fictrac/` runtime folder with `fictrac.exe`, `configGui.exe`, OpenCV/NLopt DLLs, configuration and calibration images. No separate FicTrac download or build is needed for this package.
 
 Activate your Python environment, open a terminal in the extracted project directory, and run:
 
@@ -36,6 +36,8 @@ The Git checkout includes FicTrac source in `fictrac-2.1.1/`, but not compiled r
 Recalibrate the supplied configuration for your apparatus before collecting data. The checkout alone cannot perform real tracking without these runtime files; the source directory is not a substitute for them.
 
 ## Run
+
+The launcher, dialogs, terminal messages and generated plot labels are English-only. Legacy saved language preferences are normalized to English; there is no language-switch control. Language changes do not change acquisition parameters, CSV field names or numerical calculations. Native SolidWorks files are preserved; see [CAD language-check limitations](hardware/README.md) before claiming that their internal names are English-only.
 
 ```powershell
 python launcher.py

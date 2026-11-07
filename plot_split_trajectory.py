@@ -8,27 +8,27 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from output_naming import find_csv_in_folder, resolve_input_path
 
-plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei"]
+plt.rcParams["font.sans-serif"] = ["DejaVu Sans", "Arial"]
 plt.rcParams["axes.unicode_minus"] = False
 
 SMOOTHING_WINDOW = 5
 OUTPUT_DIR_NAME = "TrajectoryPlots"
-AXIS_X_LABEL = "虚拟世界 Y 位移 (cm)"
-AXIS_Y_LABEL = "虚拟世界 X 位移 (cm)"
+AXIS_X_LABEL = "Virtual world Y displacement (cm)"
+AXIS_Y_LABEL = "Virtual world X displacement (cm)"
 
 
 def select_file():
     root = tk.Tk()
     root.withdraw()
     return filedialog.askopenfilename(
-        title="请选择果蝇实验轨迹数据 CSV 文件",
+        title="Select a Drosophila trajectory CSV file",
         filetypes=[("CSV Files", "*.csv")],
     )
 
 
 def load_clean_data(file_path):
     if not os.path.exists(file_path):
-        print(f"文件未找到: {file_path}")
+        print(f"File not found: {file_path}")
         return None
 
     data_end_index = 0
@@ -45,7 +45,7 @@ def load_clean_data(file_path):
     try:
         return pd.read_csv(file_path, nrows=max(data_end_index - 1, 0))
     except Exception as exc:
-        print(f"读取 CSV 文件失败: {exc}")
+        print(f"Could not read the CSV file: {exc}")
         return None
 
 
@@ -92,7 +92,7 @@ def state_meta(state_df, state_index):
 
 def build_state_paths(df):
     if "VR_Fly_X_cm" not in df.columns or "VR_Fly_Y_cm" not in df.columns:
-        print("错误: 当前 CSV 缺少 VR_Fly_X_cm / VR_Fly_Y_cm，不能绘制虚拟世界轨迹。")
+        print("Error: CSV is missing VR_Fly_X_cm / VR_Fly_Y_cm; cannot plot virtual-world trajectories.")
         return {}, 1.0
 
     paths = {}
@@ -117,7 +117,7 @@ def build_state_paths(df):
 
 def build_continuous_state_paths(df):
     if "VR_Fly_X_cm" not in df.columns or "VR_Fly_Y_cm" not in df.columns:
-        print("错误: 当前 CSV 缺少 VR_Fly_X_cm / VR_Fly_Y_cm，不能绘制连续总轨迹。")
+        print("Error: CSV is missing VR_Fly_X_cm / VR_Fly_Y_cm; cannot plot the continuous trajectory.")
         return {}, 1.0
 
     work_df = df.copy()
@@ -153,15 +153,15 @@ def build_continuous_state_paths(df):
 def plot_state_trajectory(path_df, output_png, meta, axis_limit):
     fig, ax = plt.subplots(figsize=(7.2, 7.2))
 
-    stim_text = "有刺激" if str(meta["stimulus_on"]).strip() in {"1", "True", "true"} else "无刺激"
+    stim_text = "Stimulus" if str(meta["stimulus_on"]).strip() in {"1", "True", "true"} else "No stimulus"
     title = (
         f"State {meta['index']:02d} | {meta['block']} | {meta['bg_name']} / {meta['brightness']} | "
         f"{stim_text} | {meta['duration']:.2f}s"
     )
 
     ax.plot(path_df["Smooth_Y"], path_df["Smooth_X"], color="#0C9B75", linewidth=1.5, alpha=0.9)
-    ax.scatter(path_df["Smooth_Y"].iloc[0], path_df["Smooth_X"].iloc[0], color="#159447", s=52, label="起点", zorder=3)
-    ax.scatter(path_df["Smooth_Y"].iloc[-1], path_df["Smooth_X"].iloc[-1], color="#C93B3B", s=60, marker="X", label="终点", zorder=3)
+    ax.scatter(path_df["Smooth_Y"].iloc[0], path_df["Smooth_X"].iloc[0], color="#159447", s=52, label="Start", zorder=3)
+    ax.scatter(path_df["Smooth_Y"].iloc[-1], path_df["Smooth_X"].iloc[-1], color="#C93B3B", s=60, marker="X", label="End", zorder=3)
     ax.set_title(title, fontsize=13, pad=12)
     ax.set_xlabel(AXIS_X_LABEL)
     ax.set_ylabel(AXIS_Y_LABEL)
@@ -175,7 +175,7 @@ def plot_state_trajectory(path_df, output_png, meta, axis_limit):
 
     plt.tight_layout()
     plt.savefig(output_png, bbox_inches="tight", dpi=170)
-    print(f"保存: {output_png}")
+    print(f"Saved: {output_png}")
     plt.close(fig)
 
 
@@ -217,7 +217,7 @@ def plot_all_state_trajectories(state_paths, output_png, axis_limit):
 
     plt.tight_layout()
     plt.savefig(output_png, bbox_inches="tight", dpi=170)
-    print(f"保存: {output_png}")
+    print(f"Saved: {output_png}")
     plt.close(fig)
 
 
@@ -227,14 +227,14 @@ def plot_state_trajectories(file_path):
         return
 
     if "State_Index" not in df.columns:
-        print("错误: 当前 CSV 缺少 State_Index 列，不能按状态拆分轨迹。")
+        print("Error: CSV is missing State_Index; cannot split trajectories by state.")
         return
 
     df = df.copy()
     df["State_Index"] = pd.to_numeric(df["State_Index"], errors="coerce")
     df = df.dropna(subset=["State_Index"])
     if df.empty:
-        print("错误: State_Index 列没有有效数据。")
+        print("Error: State_Index contains no valid data.")
         return
 
     experiment_dir = os.path.dirname(os.path.abspath(file_path))
@@ -243,7 +243,7 @@ def plot_state_trajectories(file_path):
 
     state_paths, axis_limit = build_state_paths(df)
     if not state_paths:
-        print("没有可绘制的 VR 世界轨迹数据。")
+        print("No virtual-world trajectory data to plot.")
         return
 
     continuous_paths, continuous_axis_limit = build_continuous_state_paths(df)
@@ -256,7 +256,7 @@ def plot_state_trajectories(file_path):
         state_df = df[df["State_Index"].astype(int) == state_index]
         path_df = state_paths.get(state_index)
         if state_df.empty or path_df is None:
-            print(f"State {state_index:02d}: 没有有效 VR 轨迹数据，跳过。")
+            print(f"State {state_index:02d}: No valid VR trajectory data; skipping.")
             continue
 
         meta = state_meta(state_df, state_index)
@@ -270,15 +270,15 @@ def plot_state_trajectories(file_path):
         plot_state_trajectory(path_df, output_png, meta, axis_limit)
         generated += 1
 
-    print(f"\n完成: 共生成 {generated} 张状态轨迹图")
-    print(f"输出文件夹: {output_dir}")
+    print(f"\nFinished: generated {generated} state trajectory plots")
+    print(f"Output directory: {output_dir}")
 
 
 if __name__ == "__main__":
     input_path = sys.argv[1] if len(sys.argv) > 1 else select_file()
     csv_path = resolve_input_path(input_path)
     if not csv_path or not os.path.exists(csv_path):
-        print("未找到可用 CSV 文件，程序退出。")
+        print("No usable CSV file found. Exiting.")
         sys.exit()
 
     plot_state_trajectories(csv_path)

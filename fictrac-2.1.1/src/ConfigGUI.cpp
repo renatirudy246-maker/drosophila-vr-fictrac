@@ -581,13 +581,13 @@ bool ConfigGui::run()
             disp_frame = (disp_frame - min) * 255 / (max - min);
         }
 
-        // ==================�����������棺͸�ӷ�ɢ�������ߡ�==================
-        // ֻ���ڵ�����������ϵ�궨�׶Σ��Ż�������
+        // Perspective guide overlay for camera-to-animal calibration.
+        // Draw only while calibrating a camera-to-animal coordinate plane.
         if (_input_data.mode == R_XY || _input_data.mode == R_YZ || _input_data.mode == R_XZ) {
-            // ȷ���Ѿ����㹻�ĵ�һ����Ե��������Բ��
+            // Require at least three points on the sphere outline.
             if (_input_data.circPts.size() >= 3) {
 
-                // --- 1. ����С�����ĺͰ뾶 (�����߼����ֲ���) ---
+                // Estimate the sphere center and radius from its outline.
                 std::vector<cv::Point2f> float_pts;
                 for (size_t i = 0; i < _input_data.circPts.size(); i++) {
                     float_pts.push_back(cv::Point2f(static_cast<float>(_input_data.circPts[i].x),
@@ -601,24 +601,24 @@ bool ConfigGui::run()
                 int cx = cvRound(center2d.x);
                 int cy = cvRound(center2d.y);
 
-                // --- 2. ���û�ͼ���� ---
+                // Set the guide drawing style.
                 cv::Scalar gridColor(0, 255, 255);
                 int thickness = 1;
 
-                // ���ƻ���ʮ���� (��������)
+                // Draw crosshairs through the estimated sphere center.
                 cv::line(disp_frame, cv::Point(cx, 0), cv::Point(cx, disp_frame.rows), gridColor, 1);
                 cv::line(disp_frame, cv::Point(0, cy), cv::Point(disp_frame.cols, cy), gridColor, 1);
 
-                // --- 3. ���ģ�����͸������ (�ص��޸�) ---
-                // ���������������һ��?4x4 ������ (5����ֱ�ߣ�5��ˮƽ��)
-                // ��������ֱ���Ĵ�Լ 80% (0.8 * r * 2 = 1.6 * r)
+                // Construct the perspective grid.
+                // Use five lines per axis to form four grid cells.
+                // The grid spans 80 percent of the estimated sphere diameter.
                 int num_lines = 5;
                 float grid_extent = radius2d * 0.8f;
                 float step = (grid_extent * 2.0f) / (num_lines - 1);
 
-                // �������Ӳ������?(����߳�?cm/13cm)��������Ҫһ��͸��ϵ����
-                // ���ϵ�������������°벿�ĺ�������ѹ���ϰ벿�ĺ�������?
-                // �������ǹ���һ��������ϵ�� 0.25 (�����΢�����?
+                // Apply a perspective factor to the calibration guide.
+                // Widen the lower grid and narrow the upper grid.
+                // Scale the guide factor for the configured camera height.
                 // Perspective guide strength for the calibration trapezoid.
                 // The old guide was tuned for a camera about 5 cm above the ball.
                 // Current setup: camera is about 2 cm above the ball, so the
@@ -627,39 +627,39 @@ bool ConfigGui::run()
                 const float reference_height_cm = 5.0f;
                 float pinch_factor = 0.25f * (camera_height_above_ball_cm / reference_height_cm);
 
-                // A. ���ƴ�ֱ�����������?(��Ӧ Y ��, �� Z ������Ӱ�������͸��?
+                // A. Draw vertical guide lines with perspective-dependent endpoints.
                 for (int i = 0; i < num_lines; ++i) {
-                    // ���� Y �����ʼ�ֲ�����?
+                    // Compute the initial local Y position.
                     float ly = -grid_extent + i * step;
 
-                    // ���������������˵���������ĵ�?Y �� Z ����
+                    // Define endpoint offsets relative to the sphere center.
                     float z_top = -grid_extent;
                     float z_bottom = grid_extent;
 
-                    // ���������˵���Ե�͸�����ű���?
-                    float k_top = 1.0f + pinch_factor * (z_top / radius2d); // Z�Ǹ�ֵ��k<1 (ѹ��)
-                    float k_bottom = 1.0f + pinch_factor * (z_bottom / radius2d); // Z����ֵ��k>1 (����)
+                    // Compute the perspective scale for each endpoint.
+                    float k_top = 1.0f + pinch_factor * (z_top / radius2d); // Negative Z gives k < 1 and narrows the guide.
+                    float k_bottom = 1.0f + pinch_factor * (z_bottom / radius2d); // Positive Z gives k > 1 and widens the guide.
 
-                    // �õ����յ���Ļ�����?
+                    // Project the endpoints to display coordinates.
                     cv::Point p_top(cx + cvRound(ly * k_top), cy + cvRound(z_top));
                     cv::Point p_bottom(cx + cvRound(ly * k_bottom), cy + cvRound(z_bottom));
 
                     cv::line(disp_frame, p_top, p_bottom, gridColor, thickness);
                 }
 
-                // B. ����ˮƽ�����������?(��Ӧ Z ��)
-                // ˮƽ�߱�����͸��Ӱ���С�����������ǵĳ��ȸ��洹ֱ�ߵĿ��ȱ�?
+                // B. Draw horizontal guide lines at each local Z level.
+                // Match line lengths to the widths of the perspective-scaled vertical grid.
                 for (int i = 0; i < num_lines; ++i) {
                     float lz = -grid_extent + i * step;
 
-                    // ���� Y ���ϵ���ʼ��ֲ�����?
+                    // Define the initial local Y endpoints.
                     float ly_left = -grid_extent;
                     float ly_right = grid_extent;
 
-                    // ���㵱ǰ Z �����µ����ű���
+                    // Compute the perspective scale at this Z level.
                     float k = 1.0f + pinch_factor * (lz / radius2d);
 
-                    // �õ����յ���Ļ�����?
+                    // Project the endpoints to display coordinates.
                     cv::Point p_left(cx + cvRound(ly_left * k), cy + cvRound(lz));
                     cv::Point p_right(cx + cvRound(ly_right * k), cy + cvRound(lz));
 

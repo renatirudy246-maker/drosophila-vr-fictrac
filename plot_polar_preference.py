@@ -11,14 +11,14 @@ import numpy as np
 import pandas as pd
 from output_naming import resolve_input_path
 
-plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei"]
+plt.rcParams["font.sans-serif"] = ["DejaVu Sans", "Arial"]
 plt.rcParams["axes.unicode_minus"] = False
 
 
 def select_file():
     root = tk.Tk()
     root.withdraw()
-    return filedialog.askopenfilename(title="请选择果蝇实验数据 CSV 文件", filetypes=[("CSV Files", "*.csv")])
+    return filedialog.askopenfilename(title="Select a Drosophila experiment CSV file", filetypes=[("CSV Files", "*.csv")])
 
 
 def safe_name(value):
@@ -85,7 +85,7 @@ def load_clean_data(file_path):
     try:
         return pd.read_csv(file_path, nrows=data_end_index - 1)
     except Exception as e:
-        print(f"读取数据时发生错误: {e}")
+        print(f"Could not read data: {e}")
         return None
 
 
@@ -108,7 +108,7 @@ def load_config(df=None):
                     if k in loaded:
                         config[k] = float(loaded[k]) if k not in ["V_BAR_COUNT", "BG_COLOR", "BAR_COLOR", "STIMULUS_ANGLE_REFERENCE"] else loaded[k]
         except Exception as e:
-            print(f"读取配置失败，使用默认值。错误: {e}")
+            print(f"Could not read configuration; using defaults. Error: {e}")
 
     if df is not None and not df.empty:
         snapshot_map = {
@@ -264,7 +264,7 @@ def _plot_single_state_polar(state_df, output_png, cfg):
 
     fig.savefig(output_png, bbox_inches="tight", dpi=220)
     plt.close(fig)
-    print(f"保存: {output_png}")
+    print(f"Saved: {output_png}")
 
 
 def plot_polar_radar(file_path):
@@ -275,7 +275,7 @@ def plot_polar_radar(file_path):
     required_cols = ["State_Index", "State_Stimulus_On", "Stim_Mapped_Angle_rad", "Time_s"]
     missing = [col for col in required_cols if col not in df.columns]
     if missing:
-        print(f"⚠️ 缺少极坐标方向分布所需列: {missing}")
+        print(f"[WARNING] Missing columns required for the polar preference plot: {missing}")
         return
 
     cfg = load_config(df)
@@ -286,7 +286,7 @@ def plot_polar_radar(file_path):
 
     stim_df = work_df[work_df["State_Stimulus_On"] == 1]
     if stim_df.empty:
-        print("未检测到有视觉刺激的 state。")
+        print("No states with visual stimuli were found.")
         return
 
     output_dir = os.path.join(os.path.dirname(file_path), "PolarPreference")
@@ -307,13 +307,13 @@ def plot_polar_radar(file_path):
         _plot_single_state_polar(state_df, output_png, cfg)
         generated += 1
 
-    print(f"\n完成: 共生成 {generated} 张有刺激 state 方向分布图")
-    print(f"输出文件夹: {output_dir}")
+    print(f"\nFinished: generated {generated} stimulated-state polar plots")
+    print(f"Output directory: {output_dir}")
 
 
 if __name__ == "__main__":
     csv_path = resolve_input_path(sys.argv[1]) if len(sys.argv) > 1 else select_file()
     if not csv_path or not os.path.exists(csv_path):
-        print("未选择文件，程序退出。")
+        print("No file selected. Exiting.")
         sys.exit()
     plot_polar_radar(csv_path)

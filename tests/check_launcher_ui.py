@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import shutil
 import socket
+import subprocess
 import sys
 import tempfile
 import time
@@ -131,6 +132,42 @@ class InterfaceTests(unittest.TestCase):
                        "_embed_fictrac_debug_window", "_position_embedded_fictrac_window", "stop_all"):
             self.assertIs(getattr(self.module.ExperimentLauncher, method),
                           getattr(self.module.controller.ExperimentController, method))
+
+    def test_legacy_language_cannot_reenable_non_english_interface(self):
+        app = self.app
+        self.assertFalse(hasattr(app, "lang_toggle_button"))
+        for legacy in ("zh", "en", "invalid"):
+            app.language = legacy
+            app._apply_language()
+            self.assertEqual(app.language, "en")
+            self.assertEqual(app.title(), "Drosophila VR Experiment Console")
+            self.assertEqual(app.param_widgets["WING_CONDITION"]["control"].get(), "Winged")
+            app.toggle_language()
+            self.assertEqual(app.language, "en")
+            saved = json.loads((self.work / "settings.json").read_text())
+            self.assertEqual(saved["UI_LANGUAGE"], "en")
+
+    def test_startup_migrates_a_legacy_saved_language_to_english(self):
+        path = self.work / "settings.json"
+        original = path.read_bytes()
+        legacy = dict(self.case_settings, UI_LANGUAGE="zh")
+        path.write_text(json.dumps(legacy), encoding="utf-8")
+        command = (
+            "import json, launcher; app=launcher.ExperimentLauncher(); app.withdraw(); "
+            "assert app.language == 'en'; assert app.tk_vars['UI_LANGUAGE'].get() == 'en'; "
+            "assert not hasattr(app, 'lang_toggle_button'); "
+            "assert app.title() == 'Drosophila VR Experiment Console'; "
+            "app.save_config(); assert json.load(open('settings.json'))['UI_LANGUAGE'] == 'en'; "
+            "app.destroy(); print('LEGACY_LANGUAGE_MIGRATION_OK')"
+        )
+        try:
+            result = subprocess.run([sys.executable, "-B", "-c", command], cwd=self.work,
+                                    env=dict(os.environ, PYTHONIOENCODING="utf-8"),
+                                    capture_output=True, text=True, encoding="utf-8", timeout=20)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("LEGACY_LANGUAGE_MIGRATION_OK", result.stdout)
+        finally:
+            path.write_bytes(original)
 
     def test_geometry_themes_languages_and_scrolling(self):
         app = self.app
@@ -273,9 +310,9 @@ class InterfaceTests(unittest.TestCase):
     def test_compact_selectors_labels_selection_and_saved_values(self):
         app = self.app
         choices = {
-            "WING_CONDITION": (("wing", "有翅", "Winged"), ("no_wing", "无翅", "Wingless")),
-            "SINGLE_STIMULUS_ON": ((True, "开启", "On"), (False, "关闭", "Off")),
-            "SIMULATION_MODE": ((True, "开启", "On"), (False, "关闭", "Off")),
+            "WING_CONDITION": (("wing", "Winged", "Winged"), ("no_wing", "Wingless", "Wingless")),
+            "SINGLE_STIMULUS_ON": ((True, "On", "On"), (False, "Off", "Off")),
+            "SIMULATION_MODE": ((True, "On", "On"), (False, "Off", "Off")),
         }
         for language in ("zh", "en"):
             app.language = language
@@ -520,7 +557,7 @@ class InterfaceTests(unittest.TestCase):
             app._poll_fictrac_status_udp()
             self.assertAlmostEqual(app.fictrac_status_time_s, 0.5, places=6)
             self.assertEqual(app.status_values["Time"].cget("text"), "00:00.50")
-            self.assertEqual(app.status_values["FicTrac Δt"].cget("text"), "5.56 ms")
+            self.assertEqual(app.status_values["FicTrac Delta t"].cget("text"), "5.56 ms")
             self.assertEqual(app.status_values["Speed"].cget("text"), "0.60 cm/s")
         finally:
             app._stop_fictrac_status_udp()

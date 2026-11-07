@@ -1,6 +1,6 @@
 {
     "UI_THEME": "dark",
-    "UI_LANGUAGE": "zh",
+    "UI_LANGUAGE": "en",
     "SAVE_DIR": "exp_data",
     "OUTPUT_ROOT_DIR": "exp_data",
     "WING_CONDITION": "wing",
